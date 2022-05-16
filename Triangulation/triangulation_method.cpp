@@ -132,8 +132,8 @@ bool Triangulation::triangulation(
     Matrix W_matrix_homo(points_0.size(), 9, 0.0);
     ///fill W_matrix by traversing through all the points.
     for (int i = 0; i < points_0.size(); i++){
-        Vector2D p1 = points_0[i]; p1.homogeneous(); // I added this to make it Homogenous, but it doesn't work
-        Vector2D p2 = points_1[i]; p2.homogeneous(); // I added this to make it Homogenous, but it doesn't work
+        Vector2D p1 = points_0[i]; p1.homogeneous(); // TODO:  I added this to make it Homogenous, but it doesn't work
+        Vector2D p2 = points_1[i]; p2.homogeneous();
         auto u1 = p1[0]; auto v1 = p1[1];
         auto u2 = p2[0]; auto v2 = p2[1];
 
@@ -149,10 +149,11 @@ bool Triangulation::triangulation(
 
 
 
-    ///      - compute the essential matrix E;
-    //      essential matrix = E = [T×]R
+    // TODO:       - compute the essential matrix E;
 
-    ///      - recover rotation R and t.
+    //    essential matrix = E = [T×]R
+
+    ///     TODO:     - recover rotation R and t.
     //We can recover the R and t matrix from the fundamental matrix.
 //    encodes information
 //    about the camera matrices K,K′ and the relative translation T and rotation R between
