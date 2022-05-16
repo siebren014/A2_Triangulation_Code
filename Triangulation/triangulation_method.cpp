@@ -29,6 +29,16 @@
 
 using namespace easy3d;
 
+// we need at least 8 pairs for the 8-point algorithm, but do they also have to have the same size?
+bool isvalid(const std::vector<Vector2D> &points_0, const std::vector<Vector2D> &points_1){
+
+    if (points_0.size() >= 8 && points_0.size() == points_1.size()){
+        return true;
+    }
+    else{
+        return false;
+    }
+}
 
 /**
  * TODO: Finish this function for reconstructing 3D geometry from corresponding image points.
@@ -45,30 +55,6 @@ bool Triangulation::triangulation(
         Vector3D &t    /// output: 3D vector, which is the recovered translation of the 2nd camera
 ) const
 {
-    /// NOTE: there might be multiple workflows for reconstructing 3D geometry from corresponding image points.
-    ///       This assignment uses the commonly used one explained in our lecture.
-    ///       It is advised to define a function for the sub-tasks. This way you have a clean and well-structured
-    ///       implementation, which also makes testing and debugging easier. You can put your other functions above
-    ///       triangulation(), or put them in one or multiple separate files.
-
-    std::cout << "\nTODO: I am going to implement the triangulation() function in the following file:" << std::endl
-              << "\t    - triangulation_method.cpp\n\n";
-
-    std::cout << "[Liangliang]:\n"
-                 "\tFeel free to use any provided data structures and functions. For your convenience, the\n"
-                 "\tfollowing three files implement basic linear algebra data structures and operations:\n"
-                 "\t    - Triangulation/matrix.h  Matrices of arbitrary dimensions and related functions.\n"
-                 "\t    - Triangulation/vector.h  Vectors of arbitrary dimensions and related functions.\n"
-                 "\t    - Triangulation/matrix_algo.h  Determinant, inverse, SVD, linear least-squares...\n"
-                 "\tPlease refer to the above files for a complete list of useful functions and their usage.\n\n"
-                 "\tIf you choose to implement the non-linear method for triangulation (optional task). Please\n"
-                 "\trefer to 'Tutorial_NonlinearLeastSquares/main.cpp' for an example and some explanations.\n\n"
-                 "\tIn your final submission, please\n"
-                 "\t    - delete ALL unrelated test or debug code and avoid unnecessary output.\n"
-                 "\t    - include all the source code (and please do NOT modify the structure of the directories).\n"
-                 "\t    - do NOT include the 'build' directory (which contains the intermediate files in a build step).\n"
-                 "\t    - make sure your code compiles and can reproduce your results without ANY modification.\n\n" << std::flush;
-
     /// Below are a few examples showing some useful data structures and APIs.
 
     /// define a 2D vector/point
@@ -82,6 +68,7 @@ bool Triangulation::triangulation(
 
     /// get the Homogeneous coordinates of p
     Vector3D q = p.homogeneous();
+//    std::cout<<"qtest"<<q<<std::endl;
 
     /// define a 3 by 3 matrix (and all elements initialized to 0.0)
     Matrix33 A;
@@ -133,11 +120,43 @@ bool Triangulation::triangulation(
     // implementation starts ...
 
     // TODO: check if the input is valid (always good because you never known how others will call your function).
+    if (!isvalid(points_0, points_1)){
+        throw std::invalid_argument( "invalid input" );
+    }
 
     // TODO: Estimate relative pose of two views. This can be subdivided into
-    //      - estimate the fundamental matrix F;
-    //      - compute the essential matrix E;
-    //      - recover rotation R and t.
+
+
+    /// define W_matrix based on amount of inputpoints
+    Matrix W_matrix(points_0.size(), 9, 0.0);
+    Matrix W_matrix_homo(points_0.size(), 9, 0.0);
+    ///fill W_matrix by traversing through all the points.
+    for (int i = 0; i < points_0.size(); i++){
+        Vector2D p1 = points_0[i]; p1.homogeneous(); // I added this to make it Homogenous, but it doesn't work
+        Vector2D p2 = points_1[i]; p2.homogeneous(); // I added this to make it Homogenous, but it doesn't work
+        auto u1 = p1[0]; auto v1 = p1[1];
+        auto u2 = p2[0]; auto v2 = p2[1];
+
+        W_matrix.set_row(i, {points_0[i][0]*points_1[i][0], points_0[i][1]*points_1[i][0], points_1[i][0], points_0[i][0]*points_1[i][1], points_0[i][1]*points_1[i][1], points_1[i][1], points_0[i][0], points_0[i][1], 1});
+        W_matrix_homo.set_row(i, {u1*u2, v1*u2, u2, u1*v2, v1*v2, v2, u1, v1, 1});
+    }
+    ///print W_matrix
+    std::cout<<W_matrix<<std::endl;
+
+    ///print W_matrix_homo
+    std::cout<<W_matrix_homo<<std::endl;
+
+
+
+
+    ///      - compute the essential matrix E;
+    //      essential matrix = E = [T×]R
+
+    ///      - recover rotation R and t.
+    //We can recover the R and t matrix from the fundamental matrix.
+//    encodes information
+//    about the camera matrices K,K′ and the relative translation T and rotation R between
+//    the cameras.
 
     // TODO: Reconstruct 3D points. The main task is
     //      - triangulate a pair of image points (i.e., compute the 3D coordinates for each corresponding point pair)
@@ -152,5 +171,6 @@ bool Triangulation::triangulation(
     //          - function not implemented yet;
     //          - input not valid (e.g., not enough points, point numbers don't match);
     //          - encountered failure in any step.
+
     return points_3d.size() > 0;
 }
