@@ -55,76 +55,54 @@ bool Triangulation::triangulation(
         Vector3D &t    /// output: 3D vector, which is the recovered translation of the 2nd camera
 ) const
 {
-    /// Below are a few examples showing some useful data structures and APIs.
 
-    /// define a 2D vector/point
-    Vector2D b(1.1, 2.2);
-
-    /// define a 3D vector/point
-    Vector3D a(1.1, 2.2, 3.3);
-
-    /// get the Cartesian coordinates of a (a is treated as Homogeneous coordinates)
-    Vector2D p = a.cartesian();
-
-    /// get the Homogeneous coordinates of p
-    Vector3D q = p.homogeneous();
-//    std::cout<<"qtest"<<q<<std::endl;
-
-    /// define a 3 by 3 matrix (and all elements initialized to 0.0)
-    Matrix33 A;
-
-    /// define and initialize a 3 by 3 matrix
-    Matrix33 T(1.1, 2.2, 3.3,
-               0, 2.2, 3.3,
-               0, 0, 1);
-
-    /// define and initialize a 3 by 4 matrix
-    Matrix34 M(1.1, 2.2, 3.3, 0,
-               0, 2.2, 3.3, 1,
-               0, 0, 1, 1);
-
-    /// set first row by a vector
-    M.set_row(0, Vector4D(1.1, 2.2, 3.3, 4.4));
-
-    /// set second column by a vector
-    M.set_column(1, Vector3D(5.5, 5.5, 5.5));
-
-    /// define a 15 by 9 matrix (and all elements initialized to 0.0)
-    Matrix W(15, 9, 0.0);
-    /// set the first row by a 9-dimensional vector
-    W.set_row(0, {0, 1, 2, 3, 4, 5, 6, 7, 8}); // {....} is equivalent to a std::vector<double>
-
-    /// get the number of rows.
-    int num_rows = W.rows();
-
-    /// get the number of columns.
-    int num_cols = W.cols();
-
-    /// get the the element at row 1 and column 2
-    double value = W(1, 2);
-
-    /// get the last column of a matrix
-    Vector last_column = W.get_column(W.cols() - 1);
-
-    /// define a 3 by 3 identity matrix
-    Matrix33 I = Matrix::identity(3, 3, 1.0);
-
-    /// matrix-vector product
-    Vector3D v = M * Vector4D(1, 2, 3, 4); // M is 3 by 4
-
-    ///For more functions of Matrix and Vector, please refer to 'matrix.h' and 'vector.h'
-
-    // TODO: delete all above example code in your final submission
-
-    //--------------------------------------------------------------------------------------------------------------
-    // implementation starts ...
-
-    // TODO: check if the input is valid (always good because you never known how others will call your function).
     if (!isvalid(points_0, points_1)){
         throw std::invalid_argument( "invalid input" );
     }
 
     // TODO: Estimate relative pose of two views. This can be subdivided into
+
+    //Normalize points: origin should be at centre and average distance to centre should be sqrt2
+    std::vector<Vector2D> points_0_normalized;
+    std::vector<Vector2D> points_1_normalized;
+    Vector2D sum_points0;
+    Vector2D sum_points1;
+    double dis1 = 0;
+    double dis2 = 0;
+
+    for (const auto& p1: points_0){
+        sum_points0 += p1;
+    }
+    for (const auto& p1: points_1){
+        sum_points1 += p1;
+    }
+
+    Vector2D mean_points0 = sum_points0/points_0.size();
+    Vector2D mean_points1 = sum_points0/points_1.size();
+
+    for (const auto& p1: points_0){
+        dis1 += distance(p1, mean_points0);
+    }
+    auto avg_dis1 = dis1/points_0.size();
+    for (const auto& p1: points_1){
+        dis2 += distance(p1, mean_points1);
+    }
+    auto avg_dis2 = dis1/points_1.size();
+
+    // if the average distance is bigger than square root of 2,normalize the points
+//    if (avg_dis1 > sqrt(2)){
+        auto norm_factor = avg_dis1/ sqrt(2);
+        for (auto& p1: points_0){
+            points_0_normalized.emplace_back(p1/norm_factor);
+        }
+//    }
+//    if (avg_dis2 > sqrt(2)){
+        auto norm1_factor = avg_dis2/ sqrt(2);
+        for (auto& p1: points_0){
+            points_0_normalized.emplace_back(p1/norm1_factor);
+        }
+//    }
+
 
 
     /// define W_matrix based on amount of inputpoints
@@ -132,8 +110,8 @@ bool Triangulation::triangulation(
     Matrix W_matrix_homo(points_0.size(), 9, 0.0);
     ///fill W_matrix by traversing through all the points.
     for (int i = 0; i < points_0.size(); i++){
-        Vector2D p1 = points_0[i]; p1.homogeneous(); // TODO:  I added this to make it Homogenous, but it doesn't work
-        Vector2D p2 = points_1[i]; p2.homogeneous();
+        Vector2D p1 = points_0_normalized[i]; p1.homogeneous(); // TODO:  I added this to make it Homogenous, but it doesn't work
+        Vector2D p2 = points_1_normalized[i]; p2.homogeneous();
         auto u1 = p1[0]; auto v1 = p1[1];
         auto u2 = p2[0]; auto v2 = p2[1];
 
@@ -146,7 +124,7 @@ bool Triangulation::triangulation(
     ///print W_matrix_homo
     std::cout<<W_matrix_homo<<std::endl;
 
-
+    //constraint matrix E
 
 
     // TODO:       - compute the essential matrix E;
