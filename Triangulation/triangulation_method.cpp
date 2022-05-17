@@ -30,7 +30,7 @@
 
 using namespace easy3d;
 
-// we need at least 8 pairs for the 8-point algorithm, but do they also have to have the same size?
+// we need at least 8 pairs for the 8-point algorithm
 bool isvalid(const std::vector<Vector2D> &points_0, const std::vector<Vector2D> &points_1){
 
     if (points_0.size() >= 8 && points_0.size() == points_1.size()){
@@ -40,6 +40,8 @@ bool isvalid(const std::vector<Vector2D> &points_0, const std::vector<Vector2D> 
         return false;
     }
 }
+
+
 
 /**
  * TODO: Finish this function for reconstructing 3D geometry from corresponding image points.
@@ -68,6 +70,8 @@ bool Triangulation::triangulation(
     std::vector<Vector2D> points_1_normalized;
     Vector2D sum_points0;
     Vector2D sum_points1;
+    Vector2D sum_points0norm;
+    Vector2D sum_points1norm;
     double dis0 = 0;
     double dis1 = 0;
 
@@ -93,29 +97,37 @@ bool Triangulation::triangulation(
     // if the average distance is bigger than square root of 2,normalize the points
 //    if (avg_dis1 > sqrt(2)){
         auto norm_factor = avg_dis1/ sqrt(2);
+        std::cout<<"avg_dis1 = "<<avg_dis1<< "norm_factor = "<< norm_factor<<std::endl;
         for (auto& p1: points_0){
             points_0_normalized.emplace_back(p1/norm_factor);
+            sum_points0norm += p1/norm_factor;
+
         }
 //    }
 //    if (avg_dis2 > sqrt(2)){
         auto norm1_factor = avg_dis2/ sqrt(2);
         for (auto& p1: points_1){
+            std::cout<<"p1 = "<<p1<< "p1/norm1_factor =  "<< p1/norm1_factor<<std::endl;
             points_1_normalized.emplace_back(p1/norm1_factor);
+            sum_points1norm += p1/norm1_factor;
         }
 //    }
 
-    for (const auto& p1: points_0_normalized){
-        dis1 += distance(p1, mean_points0);
-    }
-    auto avg_dis1norm = dis1/points_0.size();
-    for (const auto& p1: points_1_normalized){
-        dis2 += distance(p1, mean_points1);
-    }
-    auto avg_dis2norm = dis1/points_0.size();
+    Vector2D mean_norm_points0 = sum_points0norm/points_0.size();
+    Vector2D mean_norm_points1 = sum_points1norm/points_1.size();
 
-    std::cout<<"dis 2= "<<avg_dis2norm/points_0.size()<<std::endl;
-    std::cout<<"dis 1= "<<avg_dis1norm/points_0.size()<<std::endl;
-    std::cout<<"sqrt= "<<sqrt(2)<<std::endl;
+
+    for (const auto& p1: points_0_normalized){
+        dis0 += distance(p1, mean_norm_points0);
+    }
+    auto avg_dis0norm = dis0/points_0.size();
+    for (const auto& p1: points_1_normalized){
+        dis1 += distance(p1, mean_norm_points1);
+    }
+    auto avg_dis1norm = dis1/points_1.size();
+
+    std::cout<<"dis 0= "<<avg_dis0norm/points_1.size() <<std::endl; // TODO: this should be sqrt 2 but oddly enough it isn't
+    std::cout<<"dis 1= "<<avg_dis1norm/ points_1.size()<<std::endl;// TODO: this should be sqrt 2 but oddly enough it isn't
 
 
     /// define W_matrix based on amount of inputpoints
@@ -123,7 +135,7 @@ bool Triangulation::triangulation(
     Matrix W_matrix_homo(points_0.size(), 9, 0.0);
     ///fill W_matrix by traversing through all the points.
     for (int i = 0; i < points_0.size(); i++){
-        Vector2D p1 = points_0_normalized[i]; p1.homogeneous(); // TODO:  I added this to make it Homogenous, but it doesn't work
+        Vector2D p1 = points_0_normalized[i]; p1.homogeneous();
         Vector2D p2 = points_1_normalized[i]; p2.homogeneous();
         auto u1 = p1[0]; auto v1 = p1[1];
         auto u2 = p2[0]; auto v2 = p2[1];
