@@ -25,6 +25,7 @@
 #include "triangulation.h"
 #include "matrix_algo.h"
 #include <easy3d/optimizer/optimizer_lm.h>
+#include <cmath>
 
 
 using namespace easy3d;
@@ -67,8 +68,8 @@ bool Triangulation::triangulation(
     std::vector<Vector2D> points_1_normalized;
     Vector2D sum_points0;
     Vector2D sum_points1;
+    double dis0 = 0;
     double dis1 = 0;
-    double dis2 = 0;
 
     for (const auto& p1: points_0){
         sum_points0 += p1;
@@ -81,11 +82,11 @@ bool Triangulation::triangulation(
     Vector2D mean_points1 = sum_points0/points_1.size();
 
     for (const auto& p1: points_0){
-        dis1 += distance(p1, mean_points0);
+        dis0 += distance(p1, mean_points0);
     }
-    auto avg_dis1 = dis1/points_0.size();
+    auto avg_dis1 = dis0/points_0.size();
     for (const auto& p1: points_1){
-        dis2 += distance(p1, mean_points1);
+        dis1 += distance(p1, mean_points1);
     }
     auto avg_dis2 = dis1/points_1.size();
 
@@ -98,11 +99,23 @@ bool Triangulation::triangulation(
 //    }
 //    if (avg_dis2 > sqrt(2)){
         auto norm1_factor = avg_dis2/ sqrt(2);
-        for (auto& p1: points_0){
-            points_0_normalized.emplace_back(p1/norm1_factor);
+        for (auto& p1: points_1){
+            points_1_normalized.emplace_back(p1/norm1_factor);
         }
 //    }
 
+    for (const auto& p1: points_0_normalized){
+        dis1 += distance(p1, mean_points0);
+    }
+    auto avg_dis1norm = dis1/points_0.size();
+    for (const auto& p1: points_1_normalized){
+        dis2 += distance(p1, mean_points1);
+    }
+    auto avg_dis2norm = dis1/points_0.size();
+
+    std::cout<<"dis 2= "<<avg_dis2norm/points_0.size()<<std::endl;
+    std::cout<<"dis 1= "<<avg_dis1norm/points_0.size()<<std::endl;
+    std::cout<<"sqrt= "<<sqrt(2)<<std::endl;
 
 
     /// define W_matrix based on amount of inputpoints
