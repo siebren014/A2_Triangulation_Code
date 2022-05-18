@@ -149,6 +149,22 @@ bool Triangulation::triangulation(
     ///print W_matrix_homo
     std::cout<<W_matrix_homo<<std::endl;
 
+    //use svd decompose to construct fundamental matrix from W matrix
+
+    int m = R.rows()*2;
+    int n = 12;
+
+    Vector F = Vector(n, 0.0);
+    Matrix U = Matrix(m,m,0.0);
+    Matrix S = Matrix(m,n, 0.0);
+    Matrix V = Matrix(n,n,0.0);
+
+    svd_decompose(W_matrix, U, S, V);
+    for (int i = 0; i < n; i++) {
+        F[i] = V[i][n-1];
+
+        std::cout<<F<<std::endl;
+
     //constraint matrix E
 
 
