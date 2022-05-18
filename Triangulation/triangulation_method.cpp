@@ -172,8 +172,33 @@ bool Triangulation::triangulation(
 
 
     std::cout<<F<<std::endl;
-    Matrix F_= Matrix(3, 3, F);
-    Matrix test = Matrix(3,3, )
+    Matrix F_mat= Matrix(3, 3, 0.0);
+    F_mat[0][0]=F[0];
+    F_mat[0][1]=F[1];
+    F_mat[0][2]=F[2];
+    F_mat[1][0]=F[3];
+    F_mat[1][1]=F[4];
+    F_mat[1][2]=F[5];
+    F_mat[2][0]=F[6];
+    F_mat[2][1]=F[7];
+    F_mat[2][2]=F[8];
+
+    Matrix U_mat = Matrix(m,m,0.0);
+    Matrix S_mat = Matrix(m,n, 0.0);
+    Matrix V_mat = Matrix(n,n,0.0);
+
+    svd_decompose(F_mat,U_mat, S_mat,V_mat);
+
+    std::cout<<"S_mat"<<F_mat<<std::endl;
+
+    S_mat[2][2]=0;
+
+    std::cout<<"S_mat corrected"<<F_mat<<std::endl;
+
+
+
+
+
 
 
 
