@@ -189,11 +189,16 @@ bool Triangulation::triangulation(
 
     svd_decompose(F_mat,U_mat, S_mat,V_mat);
 
-    std::cout<<"S_mat"<<F_mat<<std::endl;
+    //set the rank to 2
+    std::cout<<"S_mat"<<S_mat<<std::endl;
 
     S_mat[2][2]=0;
 
-    std::cout<<"S_mat corrected"<<F_mat<<std::endl;
+    std::cout<<"S_mat corrected"<<S_mat<<std::endl;
+
+    Matrix33 F_bestrank = (U_mat * S_mat * V.transpose());
+
+    std::cout<<"Fbestrank"<<F_bestrank<<std::endl;
 
 
 
