@@ -73,8 +73,6 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
     }
     auto avg_dis2 = dis1 / points_1.size();
 
-// if the average distance is bigger than square root of 2,normalize the points
-//    if (avg_dis1 > sqrt(2)){
     auto norm_factor = avg_dis1 / sqrt(2);
     std::cout << "avg_dis1 = " << avg_dis1 << "norm_factor = " << norm_factor << std::endl;
     for (auto &p1: points_0) {
@@ -82,19 +80,16 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
         sum_points0norm += p1 / norm_factor;
 
     }
-//    }
-//    if (avg_dis2 > sqrt(2)){
+
     auto norm1_factor = avg_dis2 / sqrt(2);
     for (auto &p1: points_1) {
         std::cout << "p1 = " << p1 << "p1/norm1_factor =  " << p1 / norm1_factor << std::endl;
         points_1_normalized.emplace_back(p1 / norm1_factor);
         sum_points1norm += p1 / norm1_factor;
     }
-//    }
 
     Vector2D mean_norm_points0 = sum_points0norm / points_0.size();
     Vector2D mean_norm_points1 = sum_points1norm / points_1.size();
-
 
     for (const auto &p1: points_0_normalized) {
         dis0_norm += distance(p1, mean_norm_points0);
@@ -129,80 +124,18 @@ bool Triangulation::triangulation(
         std::vector<Vector3D> &points_3d,       /// output: reconstructed 3D points
         Matrix33 &R,   /// output: 3 by 3 matrix, which is the recovered rotation of the 2nd camera
         Vector3D &t    /// output: 3D vector, which is the recovered translation of the 2nd camera
-) const
-{
+) const{
 
     if (!isvalid(points_0, points_1)){
         throw std::invalid_argument( "invalid input" );
     }
 
-    // TODO: Estimate relative pose of two views. This can be subdivided into
-
-    //Normalize points: origin should be at centre and average distance to centre should be sqrt2
-    std::vector<Vector2D> points_0_normalized;
-    std::vector<Vector2D> points_1_normalized;
-    Vector2D sum_points0;
-    Vector2D sum_points1;
-    Vector2D sum_points0norm;
-    Vector2D sum_points1norm;
-    double dis0 = 0;
-    double dis1 = 0;
-    double dis0_norm = 0;
-    double dis1_norm = 0;
-
-    for (const auto& p1: points_0){
-        sum_points0 += p1;
-    }
-    for (const auto& p1: points_1){
-        sum_points1 += p1;
-    }
-
-    Vector2D mean_points0 = sum_points0/points_0.size();
-    Vector2D mean_points1 = sum_points0/points_1.size();
-
-    for (const auto& p1: points_0){
-        dis0 += distance(p1, mean_points0);
-    }
-    auto avg_dis1 = dis0/points_0.size();
-    for (const auto& p1: points_1){
-        dis1 += distance(p1, mean_points1);
-    }
-    auto avg_dis2 = dis1/points_1.size();
-
-    // if the average distance is bigger than square root of 2,normalize the points
-//    if (avg_dis1 > sqrt(2)){
-        auto norm_factor = avg_dis1/ sqrt(2);
-        std::cout<<"avg_dis1 = "<<avg_dis1<< "norm_factor = "<< norm_factor<<std::endl;
-        for (auto& p1: points_0){
-            points_0_normalized.emplace_back(p1/norm_factor);
-            sum_points0norm += p1/norm_factor;
-
-        }
-//    }
-//    if (avg_dis2 > sqrt(2)){
-        auto norm1_factor = avg_dis2/ sqrt(2);
-        for (auto& p1: points_1){
-            std::cout<<"p1 = "<<p1<< "p1/norm1_factor =  "<< p1/norm1_factor<<std::endl;
-            points_1_normalized.emplace_back(p1/norm1_factor);
-            sum_points1norm += p1/norm1_factor;
-        }
-//    }
-
-    Vector2D mean_norm_points0 = sum_points0norm/points_0.size();
-    Vector2D mean_norm_points1 = sum_points1norm/points_1.size();
+    auto norm_points = normalize_points(points_0, points_1);
+    auto points_0_norm = norm_points[0];
+    auto points_1_norm = norm_points[1];
 
 
-    for (const auto& p1: points_0_normalized){
-        dis0_norm += distance(p1, mean_norm_points0);
-    }
-    auto avg_dis0norm = dis0_norm/points_0.size();
-    for (const auto& p1: points_1_normalized){
-        dis1_norm += distance(p1, mean_norm_points1);
-    }
-    auto avg_dis1norm = dis0_norm/points_1.size();
-
-    std::cout<<"dis 0= "<<avg_dis0norm/points_1.size() <<std::endl;
-    std::cout<<"dis 1= "<<avg_dis1norm/points_1.size()<<std::endl;
+//    // TODO: Estimate relative pose of two views. This can be subdivided into
 
 
     /// define W_matrix based on amount of inputpoints
@@ -210,8 +143,8 @@ bool Triangulation::triangulation(
     Matrix W_matrix_homo(points_0.size(), 9, 0.0);
     ///fill W_matrix by traversing through all the points.
     for (int i = 0; i < points_0.size(); i++){
-        Vector2D p1 = points_0_normalized[i]; p1.homogeneous();
-        Vector2D p2 = points_1_normalized[i]; p2.homogeneous();
+        Vector2D p1 = points_0_norm[i];
+        Vector2D p2 = points_1_norm[i];
         auto u1 = p1[0]; auto v1 = p1[1];
         auto u2 = p2[0]; auto v2 = p2[1];
 
@@ -226,19 +159,31 @@ bool Triangulation::triangulation(
 
     //use svd decompose to construct fundamental matrix from W matrix
 
-    int m = R.rows()*2;
-    int n = 12;
+    int m = points_0.size();
+    int n = 9;
 
-    Vector F = Vector(n, 0.0);
+//    Vector F = Vector(n, 0.0);
     Matrix U = Matrix(m,m,0.0);
     Matrix S = Matrix(m,n, 0.0);
     Matrix V = Matrix(n,n,0.0);
 
-    svd_decompose(W_matrix, U, S, V);
-    for (int i = 0; i < n; i++) {
-        F[i] = V[i][n-1];
+    svd_decompose(Matrix (W_matrix_homo), U, S, V);
+    Vector F = V.get_column(V.cols() - 1);
 
-        std::cout<<F<<std::endl;
+
+    std::cout<<F<<std::endl;
+    Matrix F_= Matrix(3, 3, F);
+    Matrix test = Matrix(3,3, )
+
+
+
+//    void svd_decompose(const Matrix &A, Matrix &U, Matrix &S, Matrix &V) {
+
+//    for (int i = 0; i < n; i++) {
+//        F[i] = V[i][n - 1];
+//        std::cout << F << std::endl;
+//
+//    }
 
     //constraint matrix E
 
