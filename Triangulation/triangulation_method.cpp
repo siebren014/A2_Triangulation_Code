@@ -135,8 +135,6 @@ bool Triangulation::triangulation(
     auto points_1_norm = norm_points[1];
 
 
-//    // TODO: Estimate relative pose of two views. This can be subdivided into
-
 
     /// define W_matrix based on amount of inputpoints
     Matrix W_matrix(points_0.size(), 9, 0.0);
@@ -200,29 +198,32 @@ bool Triangulation::triangulation(
 
     std::cout<<"Fbestrank"<<F_bestrank<<std::endl;
 
+    auto Fscale = F_bestrank(2,2);
+    /// computed assignment. Divide each element by v
 
+    auto F_scaled = F_bestrank/ F_bestrank[2][2];
 
+    std::cout<<F_scaled<<std::endl;
 
+    // TODO: STEP 2
 
+    Matrix K = Matrix(3,3);
+    K.set_row(0,{fx, 0, cx});
+    K.set_row(1,{0,fy,cy});
+    K.set_row(2,{0,0,1});
 
+    //E Matrix
+    Matrix E = transpose(K)*F_mat*K;
 
-
-//    void svd_decompose(const Matrix &A, Matrix &U, Matrix &S, Matrix &V) {
-
-//    for (int i = 0; i < n; i++) {
-//        F[i] = V[i][n - 1];
-//        std::cout << F << std::endl;
-//
-//    }
-
-    //constraint matrix E
-
-
-    // TODO:       - compute the essential matrix E;
-
-    //    essential matrix = E = [T×]R
+    // R and t have 2 potential values, so 4 values. Means that we have 4 candidates.
 
     ///     TODO:     - recover rotation R and t.
+    Matrix w = Matrix(3,3);
+    w.set_row(0,{0, -1, 0});
+    w.set_row(1,{0,fy,cy});
+    w.set_row(2,{0,0,1});
+
+
     //We can recover the R and t matrix from the fundamental matrix.
 //    encodes information
 //    about the camera matrices K,K′ and the relative translation T and rotation R between
