@@ -74,7 +74,6 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
     auto avg_dis2 = dis1 / points_1.size();
 
     auto norm_factor = avg_dis1 / sqrt(2);
-//    std::cout << "avg_dis1 = " << avg_dis1 << "norm_factor = " << norm_factor << std::endl;
     for (auto &p1: points_0) {
         points_0_normalized.emplace_back(p1 / norm_factor);
         sum_points0norm += p1 / norm_factor;
@@ -83,7 +82,6 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
 
     auto norm1_factor = avg_dis2 / sqrt(2);
     for (auto &p1: points_1) {
-//        std::cout << "p1 = " << p1 << "p1/norm1_factor =  " << p1 / norm1_factor << std::endl;
         points_1_normalized.emplace_back(p1 / norm1_factor);
         sum_points1norm += p1 / norm1_factor;
     }
@@ -94,14 +92,11 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
     for (const auto &p1: points_0_normalized) {
         dis0_norm += distance(p1, mean_norm_points0);
     }
-    auto avg_dis0norm = dis0_norm / points_0.size();
     for (const auto &p1: points_1_normalized) {
         dis1_norm += distance(p1, mean_norm_points1);
     }
-    auto avg_dis1norm = dis0_norm / points_1.size();
 
-//    std::cout << "dis 0= " << avg_dis0norm / points_1.size() << std::endl;
-//    std::cout << "dis 1= " << avg_dis1norm / points_1.size() << std::endl;
+
 
     normalize_results.emplace_back(points_0_normalized);
     normalize_results.emplace_back(points_1_normalized);
@@ -109,13 +104,6 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
     return normalize_results;
 }
 
-
-
-/**
- * TODO: Finish this function for reconstructing 3D geometry from corresponding image points.
- * @return True on success, otherwise false. On success, the reconstructed 3D points must be written to 'points_3d'
- *      and the recovered relative pose must be written to R and t.
- */
 bool Triangulation::triangulation(
         double fx, double fy,     /// input: the focal lengths (same for both cameras)
         double cx, double cy,     /// input: the principal point (same for both cameras)
@@ -135,7 +123,6 @@ bool Triangulation::triangulation(
     auto points_1_norm = norm_points[1];
 
 
-
     /// define W_matrix based on amount of inputpoints
     Matrix W_matrix(points_0.size(), 9, 0.0);
     Matrix W_matrix_homo(points_0.size(), 9, 0.0);
@@ -149,13 +136,6 @@ bool Triangulation::triangulation(
         W_matrix.set_row(i, {points_0[i][0]*points_1[i][0], points_0[i][1]*points_1[i][0], points_1[i][0], points_0[i][0]*points_1[i][1], points_0[i][1]*points_1[i][1], points_1[i][1], points_0[i][0], points_0[i][1], 1});
         W_matrix_homo.set_row(i, {u1*u2, v1*u2, u2, u1*v2, v1*v2, v2, u1, v1, 1});
     }
-//    ///print W_matrix
-//    std::cout<<W_matrix<<std::endl;
-//
-//    ///print W_matrix_homo
-//    std::cout<<W_matrix_homo<<std::endl;
-
-    //use svd decompose to construct fundamental matrix from W matrix
 
     int m = points_0.size();
     int n = 9;
@@ -188,21 +168,16 @@ bool Triangulation::triangulation(
     svd_decompose(F_mat,U_mat, S_mat,V_mat);
 
     //set the rank to 2
-//    std::cout<<"S_mat"<<S_mat<<std::endl;
-
     S_mat[2][2]=0;
 
-//    std::cout<<"S_mat corrected"<<S_mat<<std::endl;
 
     Matrix33 F_bestrank = (U_mat * S_mat * V.transpose());
 
-//    std::cout<<"Fbestrank"<<F_bestrank<<std::endl;
 
     /// computed assignment. Divide each element by v
 
     auto F_scaled = F_bestrank/ F_bestrank[2][2];
 
-//    std::cout<<F_scaled<<std::endl;
 
     // TODO: STEP 2
 
@@ -221,7 +196,6 @@ bool Triangulation::triangulation(
     svd_decompose(Matrix (E), U_E, S_E, V_E);
 
     // R and t have 2 potential values, so 4 values. Means that we have 4 candidates.
-    ///     TODO:     - recover rotation R and t.
     Matrix W_E = Matrix(3,3);
     W_E.set_row(0,{0,-1,0});
     W_E.set_row(1,{1,0,0});
@@ -239,6 +213,8 @@ bool Triangulation::triangulation(
 
     std::cout<<R1<<"R1"<<std::endl;
 
+
+
     // TODO: Reconstruct 3D points. The main task is
     //      - triangulate a pair of image points (i.e., compute the 3D coordinates for each corresponding point pair)
 
@@ -253,5 +229,5 @@ bool Triangulation::triangulation(
     //          - input not valid (e.g., not enough points, point numbers don't match);
     //          - encountered failure in any step.
 
-    return points_3d.size() > 0;
+    return !points_3d.empty();
 }
