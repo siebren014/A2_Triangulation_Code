@@ -101,17 +101,20 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
 }
 std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &points_0,const std::vector<Vector2D> &points_1, const Matrix &R, const Vector &t){
 
-    Matrix k_t = Matrix(3,4);
-    k_t.set_column(0,{R.get_column(0)});
-    k_t.set_column(1,{R.get_column(1)});
-    k_t.set_column(2,{R.get_column(2)});
-    k_t.set_column(3,{t});
+    Matrix r_t = Matrix(3,4);
+    r_t.set_column(0,{R.get_column(0)});
+    r_t.set_column(1,{R.get_column(1)});
+    r_t.set_column(2,{R.get_column(2)});
+    r_t.set_column(3,{t});
 
+    Matrix identit = Matrix(3,4);
+    identit.set_row(0,{1,0,0,0});
+    identit.set_row(1,{0,1,0,0});
+    identit.set_row(2,{0,0,1,0});
 
-    Matrix identit = identity(4,4);
+    auto M_prime = K*r_t;
+    auto M = K * identit;
 
-    auto M_prime = K*k_t;
-    auto M = K* identit;
 
     std::vector<Vector3D> points_3d;
 
@@ -122,14 +125,20 @@ std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &poi
         auto x_prime = points_1[i][0];
         auto y_prime = points_1[i][1];
 
-        Matrix A;
-        A.set_row(0,{x*M.get_row(3) - M.get_row(1)});
-        A.set_row(1,{y*M.get_row(3) - M.get_row(2)});
-        A.set_row(2,{x_prime*M.get_row(3) - M_prime.get_row(1)});
-        A.set_row(3,{y_prime*M.get_row(3) - M_prime.get_row(1)});
+        Matrix44 A;
+        std::cout<<"dumbtest"<<x*M.get_row(2) - M.get_row(0)<<std::endl;
+        A.set_row(0,{x*M.get_row(2) - M.get_row(0)});
+        A.set_row(1,{y*M.get_row(2) - M.get_row(1)});
+        A.set_row(2,{x_prime*M.get_row(2) - M_prime.get_row(0)});
+        A.set_row(3,{y_prime*M.get_row(2) - M_prime.get_row(0)});
 
+        Matrix U = Matrix(A.rows(),A.cols(),0.0);
+        Matrix S = Matrix(A.rows(),A.cols(), 0.0);
+        Matrix V = Matrix(A.cols(),A.cols(),0.0);
 
-        std::cout<<"A"<<A<<std::endl;
+        svd_decompose(A,U,S,V);
+        Vector3D p = V.get_column(V.cols() - 1);
+        points_3d.push_back(p);
     }
 
     return points_3d;
@@ -248,6 +257,12 @@ bool Triangulation::triangulation(
     auto option_2 = Points(K, points_0, points_1, R1, t2);
     auto option_3 = Points(K, points_0, points_1, R2, t1);
     auto option_4 = Points(K, points_0, points_1, R2, t2);
+
+    double sum_1 = 0.0;
+    double sum_2= 0.0;
+    double sum_3;
+    double sum_4;
+
 
 
 
