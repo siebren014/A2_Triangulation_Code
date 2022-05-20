@@ -63,6 +63,7 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
 
     Vector2D mean_points0 = sum_points0 / points_0.size();
     Vector2D mean_points1 = sum_points0 / points_1.size();
+
     for (const auto &p1: points_0) {
         dis0 += distance(p1, mean_points0);
     }
@@ -94,46 +95,14 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
     for (const auto &p1: points_1_normalized) {
         dis1_norm += distance(p1, mean_norm_points1);
     }
+
+
+
     normalize_results.emplace_back(points_0_normalized);
     normalize_results.emplace_back(points_1_normalized);
 
     return normalize_results;
 }
-std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &points_0,const std::vector<Vector2D> &points_1, const Matrix &R, const Vector &t){
-
-    Matrix k_t = Matrix(3,4);
-    k_t.set_column(0,{R.get_column(0)});
-    k_t.set_column(1,{R.get_column(1)});
-    k_t.set_column(2,{R.get_column(2)});
-    k_t.set_column(3,{t});
-
-
-    Matrix identit = identity(4,4);
-
-    auto M_prime = K*k_t;
-    auto M = K* identit;
-
-    std::vector<Vector3D> points_3d;
-
-    for (int i = 0; i < points_0.size(); i++){
-
-        auto x = points_0[i][0];
-        auto y = points_0[i][1];
-        auto x_prime = points_1[i][0];
-        auto y_prime = points_1[i][1];
-
-        Matrix A;
-        A.set_row(0,{x*M.get_row(3) - M.get_row(1)});
-        A.set_row(1,{y*M.get_row(3) - M.get_row(2)});
-        A.set_row(2,{x_prime*M.get_row(3) - M_prime.get_row(1)});
-        A.set_row(3,{y_prime*M.get_row(3) - M_prime.get_row(1)});
-
-        std::cout<<"A"<<A<<std::endl;
-    }
-
-    return points_3d;
-}
-
 
 bool Triangulation::triangulation(
         double fx, double fy,     /// input: the focal lengths (same for both cameras)
@@ -212,7 +181,7 @@ bool Triangulation::triangulation(
 
     // TODO: STEP 2
 
-    Matrix33 K;
+    Matrix K = Matrix(3,3);
     K.set_row(0,{fx, 0, cx});
     K.set_row(1,{0,fy,cy});
     K.set_row(2,{0,0,1});
@@ -240,38 +209,41 @@ bool Triangulation::triangulation(
 
     auto R1 = determinant(U_E*W_E* transpose(V_E)) * U_E*W_E* transpose(V_E);
     auto R2 = determinant(U_E* transpose(W_E)* transpose(V_E)) * U_E* transpose(W_E)* transpose(V_E);
+
     auto t1 = U_E.get_column(U_E.cols() - 1);
     auto t2 = -1* U_E.get_column(U_E.cols() - 1);
 
-    auto option_1 = Points(K, points_0, points_1, R1, t1);
-    auto option_2 = Points(K, points_0, points_1, R1, t2);
-    auto option_3 = Points(K, points_0, points_1, R2, t1);
-    auto option_4 = Points(K, points_0, points_1, R2, t2);
+//    std::cout<<R1<<"R1"<<std::endl;
+
+//    auto r_test = R1t1;
 
 
-//
-//
-//    Matrix k_t = Matrix(3,4);
-//    k_t.set_column(0,{R1.get_column(0)});
-//    k_t.set_column(1,{R1.get_column(1)});
-//    k_t.set_column(2,{R1.get_column(2)});
-//    k_t.set_column(3,{t1});
-//
-//
-//    Matrix identit = identity(4,4);
-//
-//    auto M_prime = K*k_t;
-//    auto M = K* identit;
-//
-//    auto x =(M.get_row(3)*P) - (M.get_row(1)*P);
-//    auto y =(M.get_row(3)*P) - (M.get_row(2)*P);
-//    auto z =(M.get_row(2)*P) - (M.get_row(1)*P);
-//
-//    Matrix A;
-//    A.set_row(0,{x*M.get_row(3) - M.get_row(1)})
-//    A.set_row(1,{y*M.get_row(3) - M.get_row(2)})
-//    A.set_row(2,{x_prime*M.get_row(3) - M_prime.get_row(1)})
-//    A.set_row(3,{y_prime*M.get_row(3) - M_prime.get_row(1)})
+    Matrix k_t = Matrix(3,4);
+    k_t.set_column(0,{R1.get_column(0)});
+    k_t.set_column(1,{R1.get_column(1)});
+    k_t.set_column(2,{R1.get_column(2)});
+    k_t.set_column(3,{t1});
+
+
+
+    std::cout<<M<<std::endl;
+
+//try
+
+    Matrix identit = identity(4,4);
+
+    auto M_prime = K*k_t;
+    auto M = K* identit;
+
+    auto x =(M.get_row(3)*P) - (M.get_row(1)*P);
+    auto y =(M.get_row(3)*P) - (M.get_row(2)*P);
+    auto z =(M.get_row(2)*P) - (M.get_row(1)*P);
+
+    Matrix A;
+    A.set_row(0,{x*M.get_row(3) - M.get_row(1)})
+    A.set_row(1,{y*M.get_row(3) - M.get_row(2)})
+    A.set_row(2,{x_prime*M.get_row(3) - M_prime.get_row(1)})
+    A.set_row(3,{y_prime*M.get_row(3) - M_prime.get_row(1)})
 
 //
 //    std::cout<<t1<<std::endl;
