@@ -117,16 +117,18 @@ std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &poi
 
     for (int i = 0; i < points_0.size(); i++){
 
-        auto x = points_0[0];
-        auto y = points_0[1];
-        auto x_prime = points_1[0];
-        auto y_prime = points_1[1];
+        auto x = points_0[i][0];
+        auto y = points_0[i][1];
+        auto x_prime = points_1[i][0];
+        auto y_prime = points_1[i][1];
 
         Matrix A;
         A.set_row(0,{x*M.get_row(3) - M.get_row(1)});
         A.set_row(1,{y*M.get_row(3) - M.get_row(2)});
         A.set_row(2,{x_prime*M.get_row(3) - M_prime.get_row(1)});
         A.set_row(3,{y_prime*M.get_row(3) - M_prime.get_row(1)});
+
+        std::cout<<"A"<<A<<std::endl;
     }
 
     return points_3d;
@@ -241,29 +243,35 @@ bool Triangulation::triangulation(
     auto t1 = U_E.get_column(U_E.cols() - 1);
     auto t2 = -1* U_E.get_column(U_E.cols() - 1);
 
+    auto option_1 = Points(K, points_0, points_1, R1, t1);
+    auto option_2 = Points(K, points_0, points_1, R1, t2);
+    auto option_3 = Points(K, points_0, points_1, R2, t1);
+    auto option_4 = Points(K, points_0, points_1, R2, t2);
 
 
-    Matrix k_t = Matrix(3,4);
-    k_t.set_column(0,{R1.get_column(0)});
-    k_t.set_column(1,{R1.get_column(1)});
-    k_t.set_column(2,{R1.get_column(2)});
-    k_t.set_column(3,{t1});
-
-
-    Matrix identit = identity(4,4);
-
-    auto M_prime = K*k_t;
-    auto M = K* identit;
-
-    auto x =(M.get_row(3)*P) - (M.get_row(1)*P);
-    auto y =(M.get_row(3)*P) - (M.get_row(2)*P);
-    auto z =(M.get_row(2)*P) - (M.get_row(1)*P);
-
-    Matrix A;
-    A.set_row(0,{x*M.get_row(3) - M.get_row(1)})
-    A.set_row(1,{y*M.get_row(3) - M.get_row(2)})
-    A.set_row(2,{x_prime*M.get_row(3) - M_prime.get_row(1)})
-    A.set_row(3,{y_prime*M.get_row(3) - M_prime.get_row(1)})
+//
+//
+//    Matrix k_t = Matrix(3,4);
+//    k_t.set_column(0,{R1.get_column(0)});
+//    k_t.set_column(1,{R1.get_column(1)});
+//    k_t.set_column(2,{R1.get_column(2)});
+//    k_t.set_column(3,{t1});
+//
+//
+//    Matrix identit = identity(4,4);
+//
+//    auto M_prime = K*k_t;
+//    auto M = K* identit;
+//
+//    auto x =(M.get_row(3)*P) - (M.get_row(1)*P);
+//    auto y =(M.get_row(3)*P) - (M.get_row(2)*P);
+//    auto z =(M.get_row(2)*P) - (M.get_row(1)*P);
+//
+//    Matrix A;
+//    A.set_row(0,{x*M.get_row(3) - M.get_row(1)})
+//    A.set_row(1,{y*M.get_row(3) - M.get_row(2)})
+//    A.set_row(2,{x_prime*M.get_row(3) - M_prime.get_row(1)})
+//    A.set_row(3,{y_prime*M.get_row(3) - M_prime.get_row(1)})
 
 //
 //    std::cout<<t1<<std::endl;
