@@ -212,7 +212,36 @@ bool Triangulation::triangulation(
     auto t2 = -1* U.get_column(U.cols() - 1);
 
     std::cout<<R1<<"R1"<<std::endl;
+    std::cout<<t1<<"t1"<<std::endl;
 
+    Matrix k_t = Matrix(3,4);
+    k_t.set_column(0,{R1.get_column(0)});
+    k_t.set_column(1,{R1.get_column(1)});
+    k_t.set_column(2,{R1.get_column(2)});
+    k_t.set_column(3,{t1});
+
+
+
+    std::cout<<M<<std::endl;
+
+//try
+
+    Matrix identit = identity(4,4);
+
+    auto M_prime = K*k_t;
+    auto M = K* identit;
+
+    auto x =(M.get_row(3)*P) - (M.get_row(1)*P);
+    auto y =(M.get_row(3)*P) - (M.get_row(2)*P);
+    auto z =(M.get_row(2)*P) - (M.get_row(1)*P);
+
+    Matrix A;
+    A.set_row(0,{x*M.get_row(3) - M.get_row(1)})
+    A.set_row(1,{y*M.get_row(3) - M.get_row(2)})
+    A.set_row(2,{x_prime*M.get_row(3) - M_prime.get_row(1)})
+    A.set_row(3,{y_prime*M.get_row(3) - M_prime.get_row(1)})
+
+    
 
 
     // TODO: Reconstruct 3D points. The main task is
