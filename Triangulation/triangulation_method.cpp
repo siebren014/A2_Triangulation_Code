@@ -230,7 +230,7 @@ bool Triangulation::triangulation(
     std::cout<<"K"<<K<<std::endl;
 
     //E Matrix
-    Matrix E = transpose(K)*F_mat*K;
+    Matrix E = transpose(K)*F_scaled*K;
 
     Matrix U_E = Matrix(E.rows(),E.rows(),0.0);
     Matrix V_E = Matrix(E.rows(),E.cols(),0.0);
@@ -258,11 +258,51 @@ bool Triangulation::triangulation(
     auto option_3 = Points(K, points_0, points_1, R2, t1);
     auto option_4 = Points(K, points_0, points_1, R2, t2);
 
-    double sum_1 = 0.0;
-    double sum_2= 0.0;
-    double sum_3;
-    double sum_4;
+    int sum_1 = 0;
+    int sum_2 = 0;
+    int sum_3 = 0;
+    int sum_4 = 0;
 
+    std::vector<int> allsums;
+
+    for (const auto &poin: option_1){
+        if (poin[2]>0){
+            sum_1 += 1;
+        }
+    }
+    for (const auto &poin: option_2){
+        if (poin[2]>0){
+            sum_2 += 1;
+        }
+    }
+    for (const auto &poin: option_3){
+        if (poin[2]>0){
+            sum_3 += 1;
+        }
+    }
+    for (const auto &poin: option_1){
+        if (poin[2]>0){
+            sum_4 += 1;
+        }
+    }
+
+
+    std::cout<<sum_1<<std::endl;
+    std::cout<<sum_2<<std::endl;
+    std::cout<<sum_3<<std::endl;
+    std::cout<<sum_4<<std::endl;
+
+
+
+//    for (const auto &poin: option_2){
+//        sum_2 += poin;
+//    }
+//    for (const auto &poin: option_3){
+//        sum_3 += poin;
+//    }
+//    for (const auto &poin: option_4){
+//        sum_4 += poin;
+//    }
 
 
 
