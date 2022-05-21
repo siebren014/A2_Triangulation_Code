@@ -30,6 +30,22 @@
 
 using namespace easy3d;
 
+
+struct return_camera_param {
+    std::vector<Vector3D> points_3d;
+    Matrix33 R;
+    Vector3D t;
+
+    return_camera_param();
+
+    return_camera_param(const std::vector<Vector3D> &points_3d, const  Matrix33 &R, const  Vector3D &t){
+        this-> points_3d = points_3d;
+        this-> R = R;
+        this-> t = t;
+    }
+};
+
+
 // we need at least 8 pairs for the 8-point algorithm
 bool isvalid(const std::vector<Vector2D> &points_0, const std::vector<Vector2D> &points_1){
 
@@ -99,6 +115,8 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
 
     return normalize_results;
 }
+
+
 std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &points_0,const std::vector<Vector2D> &points_1, const Matrix &R, const Vector &t){
 
     Matrix r_t = Matrix(3,4);
@@ -144,6 +162,65 @@ std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &poi
     return points_3d;
 }
 
+std::vector<std::vector<Vector3D>> point_options (const Matrix33 &K, const std::vector<Vector2D> &points_0,const std::vector<Vector2D> &points_1, const Matrix &R1, const Vector &t1, const Matrix &R2, const Vector &t2){
+
+    std::vector<std::vector<Vector3D>> pointoptions;
+    auto option_1 = Points(K, points_0, points_1, R1, t1);
+    auto option_2 = Points(K, points_0, points_1, R1, t2);
+    auto option_3 = Points(K, points_0, points_1, R2, t1);
+    auto option_4 = Points(K, points_0, points_1, R2, t2);
+    pointoptions.emplace_back(option_1);
+    pointoptions.emplace_back(option_2);
+    pointoptions.emplace_back(option_3);
+    pointoptions.emplace_back(option_4);
+
+
+    return pointoptions;
+}
+
+return_camera_param best_fit(const std::vector<std::vector<Vector3D>> &point_opt, const Matrix &R1, const Vector &t1, const Matrix &R2, const Vector &t2){
+//    return_camera_param best;
+//    std::vector<int> options_scor;
+//    for (const auto &points :point_opt){
+//        int option = 0;
+//        for (const auto &point: points){
+//            if (point.z()>0){
+//                option +=1;
+//            }
+//        }
+//        options_scor.emplace_back(option);
+//    }
+
+//
+//    int maxElementIndex = (std::max_element(options_score.begin(),options_score.end()) - options_score.begin());
+//    best.points_3d = point_opt[maxElementIndex];
+
+//    switch(maxElementIndex) {
+//        case 0:
+//            best.R = R1;
+//            best.t = t1;
+//            break;
+//        case 1:
+//            best.R = R1;
+//            best.t = t2;
+//            break;
+//        case 2:
+//            best.R = R2;
+//            best.t = t1;
+//            break;
+//        case 3:
+//            best.R = R2;
+//            best.t = t2;
+//            break;
+//
+//        default:
+//            throw std::invalid_argument( "not 1 unique solution" );
+//            ;
+//
+//    }
+    return best;
+
+}
 
 bool Triangulation::triangulation(
         double fx, double fy,     /// input: the focal lengths (same for both cameras)
@@ -215,12 +292,7 @@ bool Triangulation::triangulation(
     Matrix33 F_bestrank = (U_mat * S_mat * V.transpose());
 
 
-    /// computed assignment. Divide each element by v
-
     auto F_scaled = F_bestrank/ F_bestrank[2][2];
-
-
-    // TODO: STEP 2
 
     Matrix33 K;
     K.set_row(0,{fx, 0, cx});
@@ -253,73 +325,17 @@ bool Triangulation::triangulation(
     auto t1 = U_E.get_column(U_E.cols() - 1);
     auto t2 = -1* U_E.get_column(U_E.cols() - 1);
 
-    auto option_1 = Points(K, points_0, points_1, R1, t1);
-    auto option_2 = Points(K, points_0, points_1, R1, t2);
-    auto option_3 = Points(K, points_0, points_1, R2, t1);
-    auto option_4 = Points(K, points_0, points_1, R2, t2);
+    auto point_candidates = point_options(K, points_0, points_1, R1, t1, R2, t2);
 
-    int sum_1 = 0;
-    int sum_2 = 0;
-    int sum_3 = 0;
-    int sum_4 = 0;
-
-    std::vector<int> allsums;
-
-    for (const auto &poin: option_1){
-        if (poin[2]>0){
-            sum_1 += 1;
-        }
-    }
-    for (const auto &poin: option_2){
-        if (poin[2]>0){
-            sum_2 += 1;
-        }
-    }
-    for (const auto &poin: option_3){
-        if (poin[2]>0){
-            sum_3 += 1;
-        }
-    }
-    for (const auto &poin: option_1){
-        if (poin[2]>0){
-            sum_4 += 1;
-        }
-    }
+    return_camera_param camera_param = best_fit(point_candidates,R1, t1, R2, t2);
 
 
-    std::cout<<sum_1<<std::endl;
-    std::cout<<sum_2<<std::endl;
-    std::cout<<sum_3<<std::endl;
-    std::cout<<sum_4<<std::endl;
+    points_3d = camera_param.points_3d;
+    R = camera_param.R;
+    t = camera_param.t;
 
+    //TODO : VALIDATION;
 
-
-//    for (const auto &poin: option_2){
-//        sum_2 += poin;
-//    }
-//    for (const auto &poin: option_3){
-//        sum_3 += poin;
-//    }
-//    for (const auto &poin: option_4){
-//        sum_4 += poin;
-//    }
-
-
-
-
-    // TODO: Reconstruct 3D points. The main task is
-    //      - triangulate a pair of image points (i.e., compute the 3D coordinates for each corresponding point pair)
-
-    // TODO: Don't forget to
-    //          - write your recovered 3D points into 'points_3d' (so the viewer can visualize the 3D points for you);
-    //          - write the recovered relative pose into R and t (the view will be updated as seen from the 2nd camera,
-    //            which can help you check if R and t are correct).
-    //       You must return either 'true' or 'false' to indicate whether the triangulation was successful (so the
-    //       viewer will be notified to visualize the 3D points and update the view).
-    //       There are a few cases you should return 'false' instead, for example:
-    //          - function not implemented yet;
-    //          - input not valid (e.g., not enough points, point numbers don't match);
-    //          - encountered failure in any step.
 
     return !points_3d.empty();
 }
