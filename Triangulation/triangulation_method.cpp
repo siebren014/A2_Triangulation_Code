@@ -144,7 +144,6 @@ std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &poi
         auto y_prime = points_1[i][1];
 
         Matrix44 A;
-        std::cout<<"dumbtest"<<x*M.get_row(2) - M.get_row(0)<<std::endl;
         A.set_row(0,{x*M.get_row(2) - M.get_row(0)});
         A.set_row(1,{y*M.get_row(2) - M.get_row(1)});
         A.set_row(2,{x_prime*M.get_row(2) - M_prime.get_row(0)});
@@ -224,7 +223,6 @@ bool Triangulation::triangulation(
     Vector F = V.get_column(V.cols() - 1);
 
 
-    std::cout<<F<<std::endl;
     Matrix F_mat= Matrix(3, 3, 0.0);
     F_mat[0][0]=F[0];
     F_mat[0][1]=F[1];
@@ -256,8 +254,6 @@ bool Triangulation::triangulation(
     K.set_row(1,{0,fy,cy});
     K.set_row(2,{0,0,1});
 
-    std::cout<<"K"<<K<<std::endl;
-
     //E Matrix
     Matrix E = transpose(K)*F_scaled*K;
 
@@ -273,9 +269,6 @@ bool Triangulation::triangulation(
     W_E.set_row(1,{1,0,0});
     W_E.set_row(2,{0,0,1});
 
-    std::cout<<"matrix U = "<<U_E<<std::endl;
-    std::cout<<"matrix v = "<<V_E<<std::endl;
-    std::cout<<"matrix w = "<<W_E<<std::endl;
 
     auto R1 = determinant(U_E*W_E* transpose(V_E)) * U_E*W_E* transpose(V_E);
     auto R2 = determinant(U_E* transpose(W_E)* transpose(V_E)) * U_E* transpose(W_E)* transpose(V_E);
