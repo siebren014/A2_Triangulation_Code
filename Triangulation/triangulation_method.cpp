@@ -31,19 +31,19 @@
 using namespace easy3d;
 
 
-struct return_camera_param {
-    std::vector<Vector3D> points_3d;
-    Matrix33 R;
-    Vector3D t;
-
-    return_camera_param();
-
-    return_camera_param(const std::vector<Vector3D> &points_3d, const  Matrix33 &R, const  Vector3D &t){
-        this-> points_3d = points_3d;
-        this-> R = R;
-        this-> t = t;
-    }
-};
+//struct return_camera_param {
+//    std::vector<Vector3D> points_3d;
+//    Matrix33 R;
+//    Vector3D t;
+//
+//    return_camera_param();
+//
+//    return_camera_param(const std::vector<Vector3D> &points_3d, const  Matrix33 &R, const  Vector3D &t){
+//        this-> points_3d = points_3d;
+//        this-> R = R;
+//        this-> t = t;
+//    }
+//};
 
 
 // we need at least 8 pairs for the 8-point algorithm
@@ -178,49 +178,6 @@ std::vector<std::vector<Vector3D>> point_options (const Matrix33 &K, const std::
     return pointoptions;
 }
 
-return_camera_param best_fit(const std::vector<std::vector<Vector3D>> &point_opt, const Matrix &R1, const Vector &t1, const Matrix &R2, const Vector &t2){
-//    return_camera_param best;
-//    std::vector<int> options_scor;
-//    for (const auto &points :point_opt){
-//        int option = 0;
-//        for (const auto &point: points){
-//            if (point.z()>0){
-//                option +=1;
-//            }
-//        }
-//        options_scor.emplace_back(option);
-//    }
-
-//
-//    int maxElementIndex = (std::max_element(options_score.begin(),options_score.end()) - options_score.begin());
-//    best.points_3d = point_opt[maxElementIndex];
-
-//    switch(maxElementIndex) {
-//        case 0:
-//            best.R = R1;
-//            best.t = t1;
-//            break;
-//        case 1:
-//            best.R = R1;
-//            best.t = t2;
-//            break;
-//        case 2:
-//            best.R = R2;
-//            best.t = t1;
-//            break;
-//        case 3:
-//            best.R = R2;
-//            best.t = t2;
-//            break;
-//
-//        default:
-//            throw std::invalid_argument( "not 1 unique solution" );
-//            ;
-//
-//    }
-    return best;
-
-}
 
 bool Triangulation::triangulation(
         double fx, double fy,     /// input: the focal lengths (same for both cameras)
@@ -327,12 +284,44 @@ bool Triangulation::triangulation(
 
     auto point_candidates = point_options(K, points_0, points_1, R1, t1, R2, t2);
 
-    return_camera_param camera_param = best_fit(point_candidates,R1, t1, R2, t2);
+    std::vector<int> options_score;
+    for (const auto &points :point_candidates){
+        int option = 0;
+        for (const auto &point: points){
+            if (point.z()>0){
+                option +=1;
+            }
+        }
+        options_score.emplace_back(option);
+    }
 
 
-    points_3d = camera_param.points_3d;
-    R = camera_param.R;
-    t = camera_param.t;
+    int maxElementIndex = (std::max_element(options_score.begin(),options_score.end()) - options_score.begin());
+    points_3d = point_candidates[maxElementIndex];
+
+    switch(maxElementIndex) {
+        case 0:
+            R = R1;
+            t = t1;
+            break;
+        case 1:
+            R = R1;
+            t = t2;
+            break;
+        case 2:
+            R = R2;
+            t = t1;
+            break;
+        case 3:
+            R = R2;
+            t = t2;
+            break;
+
+        default:
+            throw std::invalid_argument( "not 1 unique solution" );
+            ;
+
+    }
 
     //TODO : VALIDATION;
 
