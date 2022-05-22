@@ -144,7 +144,7 @@ std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &poi
 
 
     std::vector<Vector3D> points_3d;
-
+    // calculating 4d P point
     for (int i = 0; i < points_0.size(); i++){
 
         auto x = points_0[i][0];
@@ -163,10 +163,17 @@ std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &poi
         Matrix V = Matrix(A.cols(),A.cols(),0.0);
 
         svd_decompose(A,U,S,V);
+        //LEON Vector4D P4 = V.get_column(V.cols() - 1);
+        //LEON return P4.cartesian();
         Vector3D p = V.get_column(V.cols() - 1);
         points_3d.push_back(p);
-    }
+        // NEW Vector4D p = V.get_column(V.cols() - 1);
+        // NEW points_4d.push_back(p);
+        //points_4d.cartesian();
+        }
 
+    //return points_4d.cartesian();
+    //return points_3d.pushback(p);
     return points_3d;
 }
 
@@ -298,6 +305,46 @@ bool Triangulation::triangulation(
         options_score.emplace_back(option);
     }
 
+/*  ADDITION CODE for calculating in front of both cameras
+    // searching for the best combination of R and t
+    std::vector<int> options_score;
+    for (const auto &points :point_candidates){  /// array of P vector3d of KPRT using point_0 and point_1
+        int option = 0;
+        for (const auto &point: points){
+            if (point_0.z()>0 && point_1.z()>0){    // in front of two cameras
+                option +=1;
+            }
+        }
+        options_score.emplace_back(option);
+    }
+*/
+
+    /*  CODE LEON
+     std::cout << M0 << std::endl;
+     int counter = 0;
+     for (int i = 0; i < points_0.size(); i++){
+         auto& p0 = points_0[i];
+         auto& p1 = points_1[i];
+
+         auto P = triangulate(p0, p1, M0, M1);
+
+         Vector3D Q = R * P + t;
+         if (P.z() > 0 && Q.z() > 0){
+             counter++;
+         }
+         points.push_back(P);
+     }
+     std::cout << "In front: " << counter << std::endl;
+     if (counter >= max_counter){
+         max_counter = counter;
+         best = pair;
+         points_3d = points;
+     }
+ }
+ return best;
+  */
+
+
     int maxElementIndex = (std::max_element(options_score.begin(),options_score.end()) - options_score.begin());
     points_3d = point_candidates[maxElementIndex];
 
@@ -326,11 +373,56 @@ bool Triangulation::triangulation(
     }
 
     //TODO : VALIDATION;
-
+/*
     // we have a R and T and K for the M matrix
-    // validation p = MP
+    // validation MP = p
+    // pM = 0
+    // projection matrix M
 
+    Matrix r_t3dcoor = Matrix(3,4);
+    r_t3dcoor.set_column(0,{R2.get_column(0)});  //set condition from above which R is the qualified R
+    r_t3dcoor.set_column(1,{R2.get_column(1)});  //set condition from above which R is the qualified R
+    r_t3dcoor.set_column(2,{R2.get_column(2)});  //set condition from above which R is the qualified R
+    r_t3dcoor.set_column(3,{t1});                          //set condition from above which t is the qualified t
+    auto Mproj = K*r_t3dcoor;
 
+    //triangulate all corresponding image points (maybe we have to start with 8 instead of all the points)
+
+    std::vector<Vector3D> points_3d;
+    // calculating 4d P point
+    for (int i = 0; i < points_0.size(); i++) {
+
+        auto x = points_0[i][0];
+        auto y = points_0[i][1];
+        auto x_prime = points_1[i][0];
+        auto y_prime = points_1[i][1];
+
+        Matrix identit = Matrix(3, 4);
+        identit.set_row(0, {1, 0, 0, 0});
+        identit.set_row(1, {0, 1, 0, 0});
+        identit.set_row(2, {0, 0, 1, 0});
+
+        auto M = K * identit;
+        Matrix44 A;
+        A.set_row(0, {x * M.get_row(2) - M.get_row(0)});
+        A.set_row(1, {y * M.get_row(2) - M.get_row(1)});
+        A.set_row(2, {x_prime * Mproj.get_row(2) - Mproj.get_row(0)});
+        A.set_row(3, {y_prime * Mproj.get_row(2) - Mproj.get_row(1)});
+
+        Matrix U = Matrix(A.rows(), A.cols(), 0.0);
+        Matrix S = Matrix(A.rows(), A.cols(), 0.0);
+        Matrix V = Matrix(A.cols(), A.cols(), 0.0);
+
+        svd_decompose(A, U, S, V);
+        //LEON Vector4D P4 = V.get_column(V.cols() - 1);
+        //LEON return P4.cartesian();
+        Vector3D p = V.get_column(V.cols() - 1);    //3d points calculated
+        points_3d.push_back(p);
+    }
+    Vector points_2d = mult(Mproj,points_3d);     //validation of projected points are from Mproj*points_3d
+    Vector nullaprox = points_2d * Mproj; //near to zero vector
+
+*/
 
     return !points_3d.empty();
 }
