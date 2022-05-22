@@ -57,6 +57,7 @@ bool isvalid(const std::vector<Vector2D> &points_0, const std::vector<Vector2D> 
     }
 }
 
+//Normalized eight-point algorithm
 std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D> &points_0,const std::vector<Vector2D> &points_1) {
     std::vector<std::vector<Vector2D>> normalize_results;
     std::vector<Vector2D> points_0_normalized;
@@ -77,8 +78,11 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
         sum_points1 += p1;
     }
 
+    //mean position calculation of the both camera standpoints, translation
     Vector2D mean_points0 = sum_points0 / points_0.size();
     Vector2D mean_points1 = sum_points0 / points_1.size();
+
+    //average distance of the transformed image points from the origin is equal to sqrt2 pixels, scaling
     for (const auto &p1: points_0) {
         dis0 += distance(p1, mean_points0);
     }
@@ -88,22 +92,24 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
     }
     auto avg_dis2 = dis1 / points_1.size();
 
-    auto norm_factor = avg_dis1 / sqrt(2);
+    //transfomation matrix T, that translate by the centroid and scale by the scaling factor
+    auto norm_factor = sqrt(2) / avg_dis1 ;
     for (auto &p1: points_0) {
-        points_0_normalized.emplace_back(p1 / norm_factor);
+        points_0_normalized.emplace_back(p1 * norm_factor);
         sum_points0norm += p1 / norm_factor;
-
     }
 
-    auto norm1_factor = avg_dis2 / sqrt(2);
+    auto norm1_factor =  sqrt(2) /avg_dis2 ;
     for (auto &p1: points_1) {
-        points_1_normalized.emplace_back(p1 / norm1_factor);
+        points_1_normalized.emplace_back(p1 * norm1_factor);
         sum_points1norm += p1 / norm1_factor;
     }
 
+    //mean normalized position calculation of the both camera standpoints
     Vector2D mean_norm_points0 = sum_points0norm / points_0.size();
     Vector2D mean_norm_points1 = sum_points1norm / points_1.size();
 
+    //average distance of the normalized points ????
     for (const auto &p1: points_0_normalized) {
         dis0_norm += distance(p1, mean_norm_points0);
     }
@@ -116,6 +122,9 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
     return normalize_results;
 }
 
+
+
+// determine the 4 possible camera positions
 
 std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &points_0,const std::vector<Vector2D> &points_1, const Matrix &R, const Vector &t){
 
@@ -197,18 +206,19 @@ bool Triangulation::triangulation(
     auto points_1_norm = norm_points[1];
 
 
-    /// define W_matrix based on amount of inputpoints
-//    Matrix W_matrix(points_0.size(), 9, 0.0);
+    //// define W_matrix based on amount of inputpoints
+
     Matrix W_matrix_normalized(points_0.size(), 9, 0.0);
-    ///fill W_matrix by traversing through all the points.
+
+    //fill W_matrix by traversing through all the points.
     for (int i = 0; i < points_0.size(); i++){
         Vector2D p1 = points_0_norm[i];
         Vector2D p2 = points_1_norm[i];
         auto u1 = p1[0]; auto v1 = p1[1];
-        auto u2 = p2[0]; auto v2 = p2[1];
+        auto u1prime = p2[0]; auto v1prime = p2[1];
 
 //        W_matrix.set_row(i, {points_0[i][0]*points_1[i][0], points_0[i][1]*points_1[i][0], points_1[i][0], points_0[i][0]*points_1[i][1], points_0[i][1]*points_1[i][1], points_1[i][1], points_0[i][0], points_0[i][1], 1});
-        W_matrix_normalized.set_row(i, {u1*u2, v1*u2, u2, u1*v2, v1*v2, v2, u1, v1, 1});
+        W_matrix_normalized.set_row(i, {u1*u1prime, v1*u1prime, u1prime, u1*v1prime, v1*v1prime, v1prime, u1, v1, 1});
     }
 
     int m = points_0.size();
@@ -221,7 +231,6 @@ bool Triangulation::triangulation(
 
     svd_decompose(Matrix (W_matrix_normalized), U, S, V);
     Vector F = V.get_column(V.cols() - 1);
-
 
     Matrix F_mat= Matrix(3, 3, 0.0);
     F_mat[0][0]=F[0];
@@ -240,20 +249,21 @@ bool Triangulation::triangulation(
 
     svd_decompose(F_mat,U_mat, S_mat,V_mat);
 
-    //set the rank to 2
+    //set the rank to 2 with constraint
     S_mat[2][2]=0;
 
+    //compute the new apprioximated F
     Matrix33 F_bestrank = (U_mat * S_mat * V.transpose());
-
 
     auto F_scaled = F_bestrank/ F_bestrank[2][2];
 
+    // setting the values of the intrinsic parameters
     Matrix33 K;
     K.set_row(0,{fx, 0, cx});
     K.set_row(1,{0,fy,cy});
     K.set_row(2,{0,0,1});
 
-    //E Matrix
+    //from fundamental F matrix to essential E Matrix
     Matrix E = transpose(K)*F_scaled*K;
 
     Matrix U_E = Matrix(E.rows(),E.rows(),0.0);
@@ -262,7 +272,7 @@ bool Triangulation::triangulation(
 
     svd_decompose(Matrix (E), U_E, S_E, V_E);
 
-    // R and t have 2 potential values, so 4 values. Means that we have 4 candidates.
+    //determination of the essential matrix the 4 potential relative pose elements ( 2potential R and 2 potential t).
     Matrix W_E = Matrix(3,3);
     W_E.set_row(0,{0,-1,0});
     W_E.set_row(1,{1,0,0});
@@ -276,6 +286,7 @@ bool Triangulation::triangulation(
 
     auto point_candidates = point_options(K, points_0, points_1, R1, t1, R2, t2);
 
+    // searching for the best combination of R and t
     std::vector<int> options_score;
     for (const auto &points :point_candidates){
         int option = 0;
@@ -286,7 +297,6 @@ bool Triangulation::triangulation(
         }
         options_score.emplace_back(option);
     }
-
 
     int maxElementIndex = (std::max_element(options_score.begin(),options_score.end()) - options_score.begin());
     points_3d = point_candidates[maxElementIndex];
@@ -315,11 +325,11 @@ bool Triangulation::triangulation(
 
     }
 
-
-
-
     //TODO : VALIDATION;
+
+    // we have a R and T and K for the M matrix
+    // validation p = MP
+
 
 
     return !points_3d.empty();
-}
