@@ -333,3 +333,4 @@ bool Triangulation::triangulation(
 
 
     return !points_3d.empty();
+}
