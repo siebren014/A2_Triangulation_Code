@@ -146,8 +146,8 @@ std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &poi
         Matrix44 A;
         A.set_row(0,{x*M.get_row(2) - M.get_row(0)});
         A.set_row(1,{y*M.get_row(2) - M.get_row(1)});
-        A.set_row(2,{x_prime*M.get_row(2) - M_prime.get_row(0)});
-        A.set_row(3,{y_prime*M.get_row(2) - M_prime.get_row(0)});
+        A.set_row(2,{x_prime*M_prime.get_row(2) - M_prime.get_row(0)});
+        A.set_row(3,{y_prime*M_prime.get_row(2) - M_prime.get_row(1)});
 
         Matrix U = Matrix(A.rows(),A.cols(),0.0);
         Matrix S = Matrix(A.rows(),A.cols(), 0.0);
@@ -198,8 +198,8 @@ bool Triangulation::triangulation(
 
 
     /// define W_matrix based on amount of inputpoints
-    Matrix W_matrix(points_0.size(), 9, 0.0);
-    Matrix W_matrix_homo(points_0.size(), 9, 0.0);
+//    Matrix W_matrix(points_0.size(), 9, 0.0);
+    Matrix W_matrix_normalized(points_0.size(), 9, 0.0);
     ///fill W_matrix by traversing through all the points.
     for (int i = 0; i < points_0.size(); i++){
         Vector2D p1 = points_0_norm[i];
@@ -207,8 +207,8 @@ bool Triangulation::triangulation(
         auto u1 = p1[0]; auto v1 = p1[1];
         auto u2 = p2[0]; auto v2 = p2[1];
 
-        W_matrix.set_row(i, {points_0[i][0]*points_1[i][0], points_0[i][1]*points_1[i][0], points_1[i][0], points_0[i][0]*points_1[i][1], points_0[i][1]*points_1[i][1], points_1[i][1], points_0[i][0], points_0[i][1], 1});
-        W_matrix_homo.set_row(i, {u1*u2, v1*u2, u2, u1*v2, v1*v2, v2, u1, v1, 1});
+//        W_matrix.set_row(i, {points_0[i][0]*points_1[i][0], points_0[i][1]*points_1[i][0], points_1[i][0], points_0[i][0]*points_1[i][1], points_0[i][1]*points_1[i][1], points_1[i][1], points_0[i][0], points_0[i][1], 1});
+        W_matrix_normalized.set_row(i, {u1*u2, v1*u2, u2, u1*v2, v1*v2, v2, u1, v1, 1});
     }
 
     int m = points_0.size();
@@ -219,7 +219,7 @@ bool Triangulation::triangulation(
     Matrix S = Matrix(m,n, 0.0);
     Matrix V = Matrix(n,n,0.0);
 
-    svd_decompose(Matrix (W_matrix_homo), U, S, V);
+    svd_decompose(Matrix (W_matrix_normalized), U, S, V);
     Vector F = V.get_column(V.cols() - 1);
 
 
@@ -242,7 +242,6 @@ bool Triangulation::triangulation(
 
     //set the rank to 2
     S_mat[2][2]=0;
-
 
     Matrix33 F_bestrank = (U_mat * S_mat * V.transpose());
 
@@ -315,6 +314,9 @@ bool Triangulation::triangulation(
             ;
 
     }
+
+
+
 
     //TODO : VALIDATION;
 
