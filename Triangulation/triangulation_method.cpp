@@ -161,7 +161,6 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
 }
 
 
-
 // determine the 4 possible camera positions
 
 std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &points_0,const std::vector<Vector2D> &points_1, const Matrix &R, const Vector &t){
@@ -170,6 +169,8 @@ std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &poi
     r_t.set_column(1,{R.get_column(1)});
     r_t.set_column(2,{R.get_column(2)});
     r_t.set_column(3,{t});
+
+//    std::cout<<"r_t"<<r_t<<std::endl;
 
     Matrix identit = Matrix(3,4);
     identit.set_row(0,{1,0,0,0});
@@ -181,7 +182,6 @@ std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &poi
 
 
     std::vector<Vector3D> points_3d;
-    // calculating 4d P point
     for (int i = 0; i < points_0.size(); i++){
 
         auto x = points_0[i][0];
@@ -200,17 +200,12 @@ std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &poi
         Matrix V = Matrix(A.cols(),A.cols(),0.0);
 
         svd_decompose(A,U,S,V);
-        //LEON Vector4D P4 = V.get_column(V.cols() - 1);
-        //LEON return P4.cartesian();
-        Vector3D p = V.get_column(V.cols() - 1);
-        points_3d.push_back(p);
-        // NEW Vector4D p = V.get_column(V.cols() - 1);
-        // NEW points_4d.push_back(p);
-        //points_4d.cartesian();
+
+        Vector4D p = V.get_column(V.cols() - 1);  // get the last column of V
+        points_3d.emplace_back();
+        points_3d.back() = p.cartesian();  // add the 3d point to the result vector
     }
 
-    //return points_4d.cartesian();
-    //return points_3d.pushback(p);
     return points_3d;
 }
 
@@ -240,10 +235,10 @@ bool Triangulation::triangulation(
         std::vector<Vector3D> &points_3d,       /// output: reconstructed 3D points
         Matrix33 &R,   /// output: 3 by 3 matrix, which is the recovered rotation of the 2nd camera
         Vector3D &t    /// output: 3D vector, which is the recovered translation of the 2nd camera
-) const{
+) const {
 
-    if (!isvalid(points_0, points_1)){
-        throw std::invalid_argument( "invalid input" );
+    if (!isvalid(points_0, points_1)) {
+        throw std::invalid_argument("invalid input");
     }
 
     auto norm_points = normalize_points(points_0, points_1);
@@ -256,55 +251,50 @@ bool Triangulation::triangulation(
     Matrix W_matrix_normalized(points_0.size(), 9, 0.0);
 
     //fill W_matrix by traversing through all the points.
-    for (int i = 0; i < points_0.size(); i++){
+    for (int i = 0; i < points_0.size(); i++) {
         Vector2D p1 = points_0_norm[i];
         Vector2D p2 = points_1_norm[i];
-        auto u1 = p1[0]; auto v1 = p1[1];
-        auto u1prime = p2[0]; auto v1prime = p2[1];
-
-//        W_matrix.set_row(i, {points_0[i][0]*points_1[i][0], points_0[i][1]*points_1[i][0], points_1[i][0], points_0[i][0]*points_1[i][1], points_0[i][1]*points_1[i][1], points_1[i][1], points_0[i][0], points_0[i][1], 1});
-        W_matrix_normalized.set_row(i, {u1*u1prime, v1*u1prime, u1prime, u1*v1prime, v1*v1prime, v1prime, u1, v1, 1});
+        auto u1 = p1[0];
+        auto v1 = p1[1];
+        auto u1prime = p2[0];
+        auto v1prime = p2[1];
+        W_matrix_normalized.set_row(i,
+                                    {u1 * u1prime, v1 * u1prime, u1prime, u1 * v1prime, v1 * v1prime, v1prime, u1, v1,
+                                     1});
     }
 
-    std::cout<<"W_matrix"<<W_matrix_normalized<<std::endl;
     int m = points_0.size();
     int n = 9;
 
-//    Vector F = Vector(n, 0.0);
-    Matrix U = Matrix(m,m,0.0);
-    Matrix S = Matrix(m,n, 0.0);
-    Matrix V = Matrix(n,n,0.0);
+    Matrix U = Matrix(m, m, 0.0);
+    Matrix S = Matrix(m, n, 0.0);
+    Matrix V = Matrix(n, n, 0.0);
 
-    svd_decompose(Matrix (W_matrix_normalized), U, S, V);
+    svd_decompose(Matrix(W_matrix_normalized), U, S, V);
     Vector F = V.get_column(V.cols() - 1);
 
-    Matrix F_mat= Matrix(3, 3, 0.0);
-    F_mat[0][0]=F[0];
-    F_mat[0][1]=F[1];
-    F_mat[0][2]=F[2];
-    F_mat[1][0]=F[3];
-    F_mat[1][1]=F[4];
-    F_mat[1][2]=F[5];
-    F_mat[2][0]=F[6];
-    F_mat[2][1]=F[7];
-    F_mat[2][2]=F[8];
-
-    std::cout<<"f_mat"<<F_mat<<std::endl;
+    Matrix F_mat = Matrix(3, 3, 0.0);
+    F_mat[0][0] = F[0];
+    F_mat[0][1] = F[1];
+    F_mat[0][2] = F[2];
+    F_mat[1][0] = F[3];
+    F_mat[1][1] = F[4];
+    F_mat[1][2] = F[5];
+    F_mat[2][0] = F[6];
+    F_mat[2][1] = F[7];
+    F_mat[2][2] = F[8];
 
 
-    Matrix U_mat = Matrix(F_mat.rows(),F_mat.rows(),0.0);
-    Matrix S_mat = Matrix(F_mat.rows(),F_mat.cols(), 0.0);
-    Matrix V_mat = Matrix(F_mat.cols(),F_mat.cols(),0.0);
+    Matrix U_mat = Matrix(F_mat.rows(), F_mat.rows(), 0.0);
+    Matrix S_mat = Matrix(F_mat.rows(), F_mat.cols(), 0.0);
+    Matrix V_mat = Matrix(F_mat.cols(), F_mat.cols(), 0.0);
 
-    svd_decompose(F_mat,U_mat, S_mat,V_mat);
+    svd_decompose(F_mat, U_mat, S_mat, V_mat);
 
     //set the rank to 2 with constraint
-    S_mat[2][2]=0;
-
-    std::cout<<"S"<<S_mat<<std::endl;
+    S_mat[2][2] = 0;
 
     //compute the new apprioximated F
-
     Matrix33 F_bestrank = (U_mat * S_mat * V_mat.transpose());
 
     auto transform_0 = Transform_mat_normalized(points_0);
@@ -315,50 +305,77 @@ bool Triangulation::triangulation(
 
 
     Matrix33 F_denorm = T_prime.transpose() * F_bestrank * T;
-    auto F_scaled = F_denorm* 1.0/F_denorm(2,2);
+    auto F_scaled = F_denorm * 1.0 / F_denorm(2, 2);
 
     // setting the values of the intrinsic parameters
     Matrix33 K;
-    K.set_row(0,{fx, 0, cx});
-    K.set_row(1,{0,fy,cy});
-    K.set_row(2,{0,0,1});
+    K.set_row(0, {fx, 0, cx});
+    K.set_row(1, {0, fy, cy});
+    K.set_row(2, {0, 0, 1});
 
     //from fundamental F matrix to essential E Matrix
-    Matrix E = transpose(K)*F_scaled*K;
+    Matrix E = transpose(K) * F_scaled * K;
 
-    Matrix U_E = Matrix(E.rows(),E.rows(),0.0);
-    Matrix V_E = Matrix(E.rows(),E.cols(),0.0);
-    Matrix S_E = Matrix(E.cols(),E.cols(),0.0);
+    Matrix U_E = Matrix(E.rows(), E.rows(), 0.0);
+    Matrix V_E = Matrix(E.rows(), E.cols(), 0.0);
+    Matrix S_E = Matrix(E.cols(), E.cols(), 0.0);
 
-    svd_decompose(Matrix (E), U_E, S_E, V_E);
+    svd_decompose(Matrix(E), U_E, S_E, V_E);
 
     //determination of the essential matrix the 4 potential relative pose elements ( 2potential R and 2 potential t).
-    Matrix W_E = Matrix(3,3);
-    W_E.set_row(0,{0,-1,0});
-    W_E.set_row(1,{1,0,0});
-    W_E.set_row(2,{0,0,1});
+    Matrix W_E = Matrix(3, 3);
+    W_E.set_row(0, {0, -1, 0});
+    W_E.set_row(1, {1, 0, 0});
+    W_E.set_row(2, {0, 0, 1});
 
 
-    auto R1 = determinant(U_E*W_E* transpose(V_E)) * U_E*W_E* transpose(V_E);
-    auto R2 = determinant(U_E* transpose(W_E)* transpose(V_E)) * U_E* transpose(W_E)* transpose(V_E);
+    auto R1 = determinant(U_E * W_E * transpose(V_E)) * U_E * W_E * transpose(V_E);
+    auto R2 = determinant(U_E * transpose(W_E) * transpose(V_E)) * U_E * transpose(W_E) * transpose(V_E);
     auto t1 = U_E.get_column(U_E.cols() - 1);
-    auto t2 = -1* U_E.get_column(U_E.cols() - 1);
+    auto t2 = -1 * U_E.get_column(U_E.cols() - 1);
 
     auto point_candidates = point_options(K, points_0, points_1, R1, t1, R2, t2);
 
     // searching for the best combination of R and t
     std::vector<int> options_score;
-    for (const auto &points :point_candidates){
+    for (int i = 0; i < point_candidates.size(); i++) {
         int option = 0;
-        for (const auto &point: points){
+        for (const auto &point: point_candidates[i]) {
             if (point.z()>0 ){
-                option +=1;
+                Matrix33 R_prime;
+                Vector3D t_prime;
+                switch(i){
+                    case 0:
+                        R_prime = R1;
+                        t_prime = t1;
+                        break;
+                    case 1:
+                        R_prime = R1;
+                        t_prime = t2;
+                        break;
+                    case 2:
+                        R_prime = R2;
+                        t_prime = t1;
+                        break;
+                    case 3:
+                        R_prime = R2;
+                        t_prime = t2;
+                        break;
+
+                    default:
+                        throw std::invalid_argument( "not 1 unique solution" );
+                        ;
+
+                }
+                Vector3D ppoint = R_prime * point + t_prime;
+                if (ppoint.z()>0 ) {
+                    option +=1;
+                }
+
             }
         }
-        std::cout<<option<<std::endl;
         options_score.emplace_back(option);
     }
-
 
     int maxElementIndex = (std::max_element(options_score.begin(),options_score.end()) - options_score.begin());
     points_3d = point_candidates[maxElementIndex];
