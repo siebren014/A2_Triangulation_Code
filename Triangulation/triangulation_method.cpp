@@ -42,6 +42,43 @@ bool isvalid(const std::vector<Vector2D> &points_0, const std::vector<Vector2D> 
     }
 }
 
+Matrix trans_scale (const std::vector<Vector2D> &points){
+    Vector2D sum_points;
+
+    for (const auto &p1: points) {
+        sum_points += p1;
+    }
+
+    //mean position calculation of the both camera standpoints, translation
+    Vector2D mean_points = sum_points / points.size();
+
+    // translation matrix
+    auto T = Matrix::identity(3, 3, 1.0);
+    T.set(0, 2, -mean_points.x());
+    T.set(1, 2, -mean_points.y());
+
+    // scaling part - average distance of translated points from their meanpointsx and meanpointsy
+    double dist_sum = 0;
+    for (auto &p : points){
+        auto homogeneous = p.homogeneous();
+        Vector3D translation = T * homogeneous;
+        auto dist = distance(translation.cartesian(), mean_points);
+        dist_sum += dist;
+    }
+    double avg_dist = dist_sum / (double)points.size();
+    double s = sqrt(2.0) / avg_dist;
+
+    // scaling matrix
+    Matrix S_M;
+    S_M.set_row(0, (s,0,0));
+    S_M.set_row(1, (0,s,0));
+    S_M.set_row(2, (0,0,1));
+
+    // transformation matrix from T and S combined. First the translation afterwards scaling
+    auto trans_and_scale = S_M * T;
+    return trans_and_scale;
+};
+
 //Normalized eight-point algorithm
 std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D> &points_0,const std::vector<Vector2D> &points_1) {
     std::vector<std::vector<Vector2D>> normalize_results;
@@ -55,6 +92,8 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
     double dis1 = 0;
     double dis0_norm = 0;
     double dis1_norm = 0;
+    auto tspoints = trans_scale(points_0);
+    auto tspoints1 = trans_scale(points_1);
 
     for (const auto &p1: points_0) {
         sum_points0 += p1;
