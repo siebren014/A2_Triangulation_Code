@@ -65,53 +65,63 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
 
     //mean position calculation of the both camera standpoints, translation
     Vector2D mean_points0 = sum_points0 / points_0.size();
-    Vector2D mean_points1 = sum_points0 / points_1.size();
+    Vector2D mean_points1 = sum_points1 / points_1.size();
 
     std::vector<Vector2D> tr_points0;
     std::vector<Vector2D> tr_points1;
 
     for (const auto &p1:points_0){
-        tr_points0.push_back(p1 - mean_points0);
-    };
+        tr_points0.emplace_back(p1 - mean_points0);
+    }
 
     for (const auto &p1:points_1){
-        tr_points1.push_back(p1 - mean_points1);
-    };
+        tr_points1.emplace_back(p1 - mean_points1);
+    }
 
     //average distance of the transformed image points from the origin is equal to sqrt2 pixels, scaling
     for (const auto &p1: tr_points0) {
-        dis0 += distance(p1, mean_points0);
+        dis0 += distance(p1, Vector2D(0,0));
     }
-    auto avg_dis1 = dis0 / points_0.size();
+    auto avg_dis0 = dis0 / points_0.size();
+
     for (const auto &p1: tr_points1) {
-        dis1 += distance(p1, mean_points1);
+        dis1 += distance(p1, Vector2D(0,0));
     }
-    auto avg_dis2 = dis1 / points_1.size();
+    auto avg_dis1 = dis1 / points_1.size();
+
+
 
     //transfomation matrix T, that translate by the centroid and scale by the scaling factor
-    auto norm_factor = sqrt(2) / avg_dis1 ;
+    auto norm_factor = avg_dis0 / sqrt(2)  ;
     for (auto &p1: tr_points0) {
-        points_0_normalized.emplace_back(p1 * norm_factor);
+        points_0_normalized.emplace_back(p1 / norm_factor);
         sum_points0norm += p1 / norm_factor;
     }
 
-    auto norm1_factor =  sqrt(2) /avg_dis2 ;
+    auto norm1_factor =  avg_dis1/ sqrt(2);
     for (auto &p1: tr_points1) {
-        points_1_normalized.emplace_back(p1 * norm1_factor);
+        points_1_normalized.emplace_back(p1 / norm1_factor);
         sum_points1norm += p1 / norm1_factor;
     }
 
-    //mean normalized position calculation of the both camera standpoints
-    Vector2D mean_norm_points0 = sum_points0norm / points_0.size();
-    Vector2D mean_norm_points1 = sum_points1norm / points_1.size();
+//    //mean normalized position calculation of the both camera standpoints
+//    Vector2D mean_norm_points0 = sum_points0norm / points_0.size();
+//    Vector2D mean_norm_points1 = sum_points1norm / points_1.size();
+//
+//    //average distance of the normalized points ????
+//    for (const auto &p1: points_0_normalized) {
+//        dis0_norm += distance(p1, mean_norm_points0);
+//    }
+//    for (const auto &p1: points_1_normalized) {
+//        dis1_norm += distance(p1, mean_norm_points1);
+//    }
+//
+//
+//    std::cout<<"mean_norm_points0"<<mean_norm_points0<<std::endl;
+//    std::cout<<"mean_norm_points1"<<mean_norm_points1<<std::endl;
+//    std::cout<<"dis0_norm "<<dis0_norm/160 <<std::endl;
+//    std::cout<<"dis1_norm "<<dis1_norm / 160<<std::endl;
 
-    //average distance of the normalized points ????
-    for (const auto &p1: points_0_normalized) {
-        dis0_norm += distance(p1, mean_norm_points0);
-    }
-    for (const auto &p1: points_1_normalized) {
-        dis1_norm += distance(p1, mean_norm_points1);
-    }
     normalize_results.emplace_back(points_0_normalized);
     normalize_results.emplace_back(points_1_normalized);
 
@@ -166,7 +176,7 @@ std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &poi
         // NEW Vector4D p = V.get_column(V.cols() - 1);
         // NEW points_4d.push_back(p);
         //points_4d.cartesian();
-        }
+    }
 
     //return points_4d.cartesian();
     //return points_3d.pushback(p);
@@ -346,7 +356,6 @@ bool Triangulation::triangulation(
 
     int maxElementIndex = (std::max_element(options_score.begin(),options_score.end()) - options_score.begin());
     points_3d = point_candidates[maxElementIndex];
-
     switch(maxElementIndex) {
         case 0:
             R = R1;
