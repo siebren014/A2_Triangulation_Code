@@ -42,42 +42,55 @@ bool isvalid(const std::vector<Vector2D> &points_0, const std::vector<Vector2D> 
     }
 }
 
-Matrix trans_scale (const std::vector<Vector2D> &points){
-    Vector2D sum_points;
 
-    for (const auto &p1: points) {
-        sum_points += p1;
+std::pair<Matrix33, bool>Transform_mat_normalized(
+        const std::vector<Vector2D>& points)
+{
+    /* elements will be returned */
+    Matrix33 T;
+    bool T_valid = false;
+
+
+    /* get transform matrix --------------------------------------------------------------------*/
+    double sumX = 0;  /* for calculating image's center */
+    double sumY = 0;
+    const double N = static_cast<double>(points.size());  /* here N is guaranteed to be larger than 0(ifInputValid() gets executed first) */
+
+    for (const auto& p : points)
+    {
+        sumX += p.x();
+        sumY += p.y();
+    }
+    if (sumX < 1e-8 || sumY < 1e-8)  /* sumX or sumY is considered equal to 0 */
+    {
+        LOG(ERROR) << "please check the divisor for x and y coordinates\n";
+        return std::make_pair(T, T_valid);  /* T_valid remains false, will not trigger further process */
     }
 
-    //mean position calculation of the both camera standpoints, translation
-    Vector2D mean_points = sum_points / points.size();
+    /* image center : (tx, ty) */
+    double tx = sumX / N;
+    double ty = sumY / N;
 
-    // translation matrix
-    auto T = Matrix::identity(3, 3, 1.0);
-    T.set(0, 2, -mean_points.x());
-    T.set(1, 2, -mean_points.y());
-
-    // scaling part - average distance of translated points from their meanpointsx and meanpointsy
-    double dist_sum = 0;
-    for (auto &p : points){
-        auto homogeneous = p.homogeneous();
-        Vector3D translation = T * homogeneous;
-        auto dist = distance(translation.cartesian(), mean_points);
-        dist_sum += dist;
+    /* scale factor */
+    double sum_dist = 0;
+    for (const auto& p : points)
+        sum_dist += sqrt((p.x() - tx) * (p.x() - tx) + (p.y() - ty) * (p.y() - ty));
+    double avg_dc = sum_dist / N;
+    if (avg_dc < 1e-8)
+    {
+        LOG(ERROR) << " check the average distance to the origin\n";
+        return std::make_pair(T, T_valid);  /* T_valid remains false, will not trigger further process */
     }
-    double avg_dist = dist_sum / (double)points.size();
-    double s = sqrt(2.0) / avg_dist;
+    double s = sqrt(2) / avg_dc;
 
-    // scaling matrix
-    Matrix S_M;
-    S_M.set_row(0, (s,0,0));
-    S_M.set_row(1, (0,s,0));
-    S_M.set_row(2, (0,0,1));
+    T.set_row(0, { s, 0, -s * tx });
+    T.set_row(1, { 0, s, -s * ty });
+    T.set_row(2, { 0, 0, 1 });
+    T_valid = true;  /* T is successfully constructed */
 
-    // transformation matrix from T and S combined. First the translation afterwards scaling
-    auto trans_and_scale = S_M * T;
-    return trans_and_scale;
-};
+    return std::make_pair(T, T_valid);
+}
+
 
 //Normalized eight-point algorithm
 std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D> &points_0,const std::vector<Vector2D> &points_1) {
@@ -92,8 +105,6 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
     double dis1 = 0;
     double dis0_norm = 0;
     double dis1_norm = 0;
-    auto tspoints = trans_scale(points_0);
-    auto tspoints1 = trans_scale(points_1);
 
     for (const auto &p1: points_0) {
         sum_points0 += p1;
@@ -143,24 +154,6 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
         sum_points1norm += p1 / norm1_factor;
     }
 
-//    //mean normalized position calculation of the both camera standpoints
-//    Vector2D mean_norm_points0 = sum_points0norm / points_0.size();
-//    Vector2D mean_norm_points1 = sum_points1norm / points_1.size();
-//
-//    //average distance of the normalized points ????
-//    for (const auto &p1: points_0_normalized) {
-//        dis0_norm += distance(p1, mean_norm_points0);
-//    }
-//    for (const auto &p1: points_1_normalized) {
-//        dis1_norm += distance(p1, mean_norm_points1);
-//    }
-//
-//
-//    std::cout<<"mean_norm_points0"<<mean_norm_points0<<std::endl;
-//    std::cout<<"mean_norm_points1"<<mean_norm_points1<<std::endl;
-//    std::cout<<"dis0_norm "<<dis0_norm/160 <<std::endl;
-//    std::cout<<"dis1_norm "<<dis1_norm / 160<<std::endl;
-
     normalize_results.emplace_back(points_0_normalized);
     normalize_results.emplace_back(points_1_normalized);
 
@@ -172,7 +165,6 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
 // determine the 4 possible camera positions
 
 std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &points_0,const std::vector<Vector2D> &points_1, const Matrix &R, const Vector &t){
-
     Matrix r_t = Matrix(3,4);
     r_t.set_column(0,{R.get_column(0)});
     r_t.set_column(1,{R.get_column(1)});
@@ -274,6 +266,7 @@ bool Triangulation::triangulation(
         W_matrix_normalized.set_row(i, {u1*u1prime, v1*u1prime, u1prime, u1*v1prime, v1*v1prime, v1prime, u1, v1, 1});
     }
 
+    std::cout<<"W_matrix"<<W_matrix_normalized<<std::endl;
     int m = points_0.size();
     int n = 9;
 
@@ -296,19 +289,33 @@ bool Triangulation::triangulation(
     F_mat[2][1]=F[7];
     F_mat[2][2]=F[8];
 
-    Matrix U_mat = Matrix(m,m,0.0);
-    Matrix S_mat = Matrix(m,n, 0.0);
-    Matrix V_mat = Matrix(n,n,0.0);
+    std::cout<<"f_mat"<<F_mat<<std::endl;
+
+
+    Matrix U_mat = Matrix(F_mat.rows(),F_mat.rows(),0.0);
+    Matrix S_mat = Matrix(F_mat.rows(),F_mat.cols(), 0.0);
+    Matrix V_mat = Matrix(F_mat.cols(),F_mat.cols(),0.0);
 
     svd_decompose(F_mat,U_mat, S_mat,V_mat);
 
     //set the rank to 2 with constraint
     S_mat[2][2]=0;
 
-    //compute the new apprioximated F
-    Matrix33 F_bestrank = (U_mat * S_mat * V.transpose());
+    std::cout<<"S"<<S_mat<<std::endl;
 
-    auto F_scaled = F_bestrank/ F_bestrank[2][2];
+    //compute the new apprioximated F
+
+    Matrix33 F_bestrank = (U_mat * S_mat * V_mat.transpose());
+
+    auto transform_0 = Transform_mat_normalized(points_0);
+    auto transform_1 = Transform_mat_normalized(points_1);
+
+    Matrix33 T = transform_0.first;
+    Matrix33 T_prime = transform_1.first;
+
+
+    Matrix33 F_denorm = T_prime.transpose() * F_bestrank * T;
+    auto F_scaled = F_denorm* 1.0/F_denorm(2,2);
 
     // setting the values of the intrinsic parameters
     Matrix33 K;
@@ -353,46 +360,6 @@ bool Triangulation::triangulation(
     }
 
 
-/*  ADDITION CODE for calculating in front of both cameras
-    // searching for the best combination of R and t
-    std::vector<int> options_score;
-    for (const auto &points :point_candidates){  /// array of P vector3d of KPRT using point_0 and point_1
-        int option = 0;
-        for (const auto &point: points){
-            if (point_0.z()>0 && point_1.z()>0){    // in front of two cameras
-                option +=1;
-            }
-        }
-        options_score.emplace_back(option);
-    }
-*/
-
-    /*  CODE LEON
-     std::cout << M0 << std::endl;
-     int counter = 0;
-     for (int i = 0; i < points_0.size(); i++){
-         auto& p0 = points_0[i];
-         auto& p1 = points_1[i];
-
-         auto P = triangulate(p0, p1, M0, M1);
-
-         Vector3D Q = R * P + t;
-         if (P.z() > 0 && Q.z() > 0){
-             counter++;
-         }
-         points.push_back(P);
-     }
-     std::cout << "In front: " << counter << std::endl;
-     if (counter >= max_counter){
-         max_counter = counter;
-         best = pair;
-         points_3d = points;
-     }
- }
- return best;
-  */
-
-
     int maxElementIndex = (std::max_element(options_score.begin(),options_score.end()) - options_score.begin());
     points_3d = point_candidates[maxElementIndex];
     switch(maxElementIndex) {
@@ -419,68 +386,6 @@ bool Triangulation::triangulation(
 
     }
 
-    //option 1 and 3 are preferred
-
-    //TODO : VALIDATION;
-
-    // we have a R and T and K for the M matrix
-    // validation MP = p
-    // pM = 0
-    // projection matrix M
-
-//    Matrix r_t3dcoor = Matrix(3,4);
-//    r_t3dcoor.set_column(0,{R1.get_column(0)});  //set condition from above which R is the qualified R
-//    r_t3dcoor.set_column(1,{R1.get_column(1)});  //set condition from above which R is the qualified R
-//    r_t3dcoor.set_column(2,{R1.get_column(2)});  //set condition from above which R is the qualified R
-//    r_t3dcoor.set_column(3,{t1});                          //set condition from above which t is the qualified t
-//    auto Mproj = K*r_t3dcoor;
-//
-//    Vector pcomputed = mult(Mproj,points_3d);
-//    //std::cout<<points_3d<<std::endl;
-//
-//    pcomputed - points_0
-
-
-
-    //triangulate all corresponding image points (maybe we have to start with 8 instead of all the points)
-
-
-/*
-    std::vector<Vector3D> points_3d;
-    // calculating 4d P point
-    for (int i = 0; i < points_0.size(); i++) {
-
-        auto x = points_0[i][0];
-        auto y = points_0[i][1];
-        auto x_prime = points_1[i][0];
-        auto y_prime = points_1[i][1];
-
-        Matrix identit = Matrix(3, 4);
-        identit.set_row(0, {1, 0, 0, 0});
-        identit.set_row(1, {0, 1, 0, 0});
-        identit.set_row(2, {0, 0, 1, 0});
-
-        auto M = K * identit;
-        Matrix44 A;
-        A.set_row(0, {x * M.get_row(2) - M.get_row(0)});
-        A.set_row(1, {y * M.get_row(2) - M.get_row(1)});
-        A.set_row(2, {x_prime * Mproj.get_row(2) - Mproj.get_row(0)});
-        A.set_row(3, {y_prime * Mproj.get_row(2) - Mproj.get_row(1)});
-
-        Matrix U = Matrix(A.rows(), A.cols(), 0.0);
-        Matrix S = Matrix(A.rows(), A.cols(), 0.0);
-        Matrix V = Matrix(A.cols(), A.cols(), 0.0);
-
-        svd_decompose(A, U, S, V);
-        //LEON Vector4D P4 = V.get_column(V.cols() - 1);
-        //LEON return P4.cartesian();
-        Vector3D p = V.get_column(V.cols() - 1);    //3d points calculated
-        points_3d.push_back(p);
-    }
-    Vector points_2d = mult(Mproj,points_3d);     //validation of projected points are from Mproj*points_3d
-    Vector nullaprox = points_2d * Mproj; //near to zero vector
-
-*/
 
     return !points_3d.empty();
 }
