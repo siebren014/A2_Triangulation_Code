@@ -402,40 +402,6 @@ bool Triangulation::triangulation(
             ;
 
     }
-    
-    
-    Matrix rt = Matrix(3,4);
-    rt.set_column(0,{R2.get_column(0)});
-    rt.set_column(1,{R2.get_column(1)});
-    rt.set_column(2,{R2.get_column(2)});
-    rt.set_column(3,{t1});
-
-    Matrix identit = Matrix(3,4);
-    identit.set_row(0,{1,0,0,0});
-    identit.set_row(1,{0,1,0,0});
-    identit.set_row(2,{0,0,1,0});
-
-    auto M_prime = K*rt;
-    auto M = K * identit;
-
-    std::cout<<M<<std::endl;
-
-    Vector2D diff0;
-    Vector2D diff1;
-
-    for (int i = 0; i < points_3d.size(); i++) {
-        Vector3D p0_proj = M * points_3d[i].homogeneous();
-        Vector2D p0_2d = p0_proj.cartesian();
-        Vector3D p1_proj = M_prime * points_3d[i].homogeneous();
-        Vector2D p1_2d = p1_proj.cartesian();
-        diff0 += p0_2d - points_0[i];
-        diff1 += p1_2d - points_1[i];
-    }
-
-    std::cout<<"diff0 = "<<diff0/points_3d.size()<<std::endl;
-    std::cout<<"diff1 = "<<diff1/points_3d.size()<<std::endl;
-
-
 
     Matrix rt = Matrix(3,4);
     rt.set_column(0,{R2.get_column(0)});
@@ -467,6 +433,7 @@ bool Triangulation::triangulation(
 
     std::cout<<"diff0 = "<<diff0/points_3d.size()<<std::endl;
     std::cout<<"diff1 = "<<diff1/points_3d.size()<<std::endl;
+
 
     return !points_3d.empty();
 }
