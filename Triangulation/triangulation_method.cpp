@@ -59,7 +59,7 @@ std::pair<Matrix33, bool>Transform_mat_normalized(
         sumX += p.x();
         sumY += p.y();
     }
-    if (sumX < 1e-8 || sumY < 1e-8)  
+    if (sumX < 1e-10 || sumY < 1e-10)  
     {
         LOG(ERROR) << "error input\n";
         return std::make_pair(T, T_valid);  /* T_valid is false, no further process steps*/
