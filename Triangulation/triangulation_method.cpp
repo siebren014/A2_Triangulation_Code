@@ -397,6 +397,11 @@ bool Triangulation::triangulation(
             throw std::invalid_argument( "not 1 unique solution" );
             ;
     }
+    // combination of R and t
+    std::cout<<"R_maxelementindex"<<R<<std::endl;
+    std::cout<<"R2"<<R2<<std::endl;
+    std::cout<<"t_maxelementindex"<<t<<std::endl;
+    std::cout<<"t"<<t<<std::endl;
     
     //---- evaluation of the results 
     //checking the difference between the u,v values in the beginning with the reprojected u,v from the 3D points
