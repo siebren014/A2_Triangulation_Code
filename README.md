@@ -40,6 +40,9 @@ Line 375
 // maxelementindex checks the options_score in the beginning and the end
 int maxElementIndex = (std::max_element(options_score.begin(),options_score.end()) - options_score.begin());
 points_3d = point_candidates[maxElementIndex];
+        
+Line 399
+// combination of R and t
 
-Line 401
+Line 406
 //---- evaluation of the results    
