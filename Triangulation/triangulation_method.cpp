@@ -30,7 +30,7 @@
 
 using namespace easy3d;
 
-
+//----requirements for input data
 // we need at least 8 pairs for the 8-point algorithm
 bool isvalid(const std::vector<Vector2D> &points_0, const std::vector<Vector2D> &points_1){
 
@@ -42,47 +42,45 @@ bool isvalid(const std::vector<Vector2D> &points_0, const std::vector<Vector2D> 
     }
 }
 
-
-std::pair<Matrix33, bool>Transform_mat_normalized(
+//---- translation and scaling matrix 
+std::pair<Matrix33, bool>Transformation_matrix(
         const std::vector<Vector2D>& points)
 {
-    /* elements will be returned */
+    //construction of the T matrix 
     Matrix33 T;
     bool T_valid = false;
-
-
-    /* get transform matrix --------------------------------------------------------------------*/
-    double sumX = 0;  /* for calculating image's center */
+    //getting the centre of the points
+    double sumX = 0;  
     double sumY = 0;
-    const double N = static_cast<double>(points.size());  /* here N is guaranteed to be larger than 0(ifInputValid() gets executed first) */
+    const double N = static_cast<double>(points.size());
 
     for (const auto& p : points)
     {
         sumX += p.x();
         sumY += p.y();
     }
-    if (sumX < 1e-8 || sumY < 1e-8)  /* sumX or sumY is considered equal to 0 */
+    if (sumX < 1e-8 || sumY < 1e-8)  
     {
-        LOG(ERROR) << "please check the divisor for x and y coordinates\n";
-        return std::make_pair(T, T_valid);  /* T_valid remains false, will not trigger further process */
+        LOG(ERROR) << "error input\n";
+        return std::make_pair(T, T_valid);  /* T_valid is false, no further process steps*/
     }
 
-    /* image center : (tx, ty) */
+    //centre of the image 
     double tx = sumX / N;
     double ty = sumY / N;
 
-    /* scale factor */
+    //scaling factor 
     double sum_dist = 0;
     for (const auto& p : points)
         sum_dist += sqrt((p.x() - tx) * (p.x() - tx) + (p.y() - ty) * (p.y() - ty));
     double avg_dc = sum_dist / N;
     if (avg_dc < 1e-8)
     {
-        LOG(ERROR) << " check the average distance to the origin\n";
-        return std::make_pair(T, T_valid);  /* T_valid remains false, will not trigger further process */
+        LOG(ERROR) << "no correct average of the points\n";
+        return std::make_pair(T, T_valid);   /* T_valid is false, no further process steps*/
     }
     double s = sqrt(2) / avg_dc;
-
+    //construction of the transformation matrix 
     T.set_row(0, { s, 0, -s * tx });
     T.set_row(1, { 0, s, -s * ty });
     T.set_row(2, { 0, 0, 1 });
@@ -92,7 +90,7 @@ std::pair<Matrix33, bool>Transform_mat_normalized(
 }
 
 
-//Normalized eight-point algorithm
+//----Normalized eight-point algorithm
 std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D> &points_0,const std::vector<Vector2D> &points_1) {
     std::vector<std::vector<Vector2D>> normalize_results;
     std::vector<Vector2D> points_0_normalized;
@@ -119,16 +117,17 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
 
     std::vector<Vector2D> tr_points0;
     std::vector<Vector2D> tr_points1;
-
+    
+    // all the points translated to their image centre 
     for (const auto &p1:points_0){
         tr_points0.emplace_back(p1 - mean_points0);
     }
-
     for (const auto &p1:points_1){
         tr_points1.emplace_back(p1 - mean_points1);
     }
 
-    //average distance of the transformed image points from the origin is equal to sqrt2 pixels, scaling
+    //eventually scaling of the points 
+    //determination of their distance from the centre of their image
     for (const auto &p1: tr_points0) {
         dis0 += distance(p1, Vector2D(0,0));
     }
@@ -139,15 +138,12 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
     }
     auto avg_dis1 = dis1 / points_1.size();
 
-
-
-    //transfomation matrix T, that translate by the centroid and scale by the scaling factor
+    //average distance divided by the sqrt of 2, for normalization
     auto norm_factor = avg_dis0 / sqrt(2)  ;
     for (auto &p1: tr_points0) {
         points_0_normalized.emplace_back(p1 / norm_factor);
         sum_points0norm += p1 / norm_factor;
     }
-
     auto norm1_factor =  avg_dis1/ sqrt(2);
     for (auto &p1: tr_points1) {
         points_1_normalized.emplace_back(p1 / norm1_factor);
@@ -161,7 +157,7 @@ std::vector<std::vector<Vector2D>> normalize_points( const std::vector<Vector2D>
 }
 
 
-// determine the 4 possible camera positions
+//----- determination of the 3D points constructed from both images and their possible R and t
 
 std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &points_0,const std::vector<Vector2D> &points_1, const Matrix &R, const Vector &t){
     Matrix r_t = Matrix(3,4);
@@ -177,10 +173,11 @@ std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &poi
     identit.set_row(1,{0,1,0,0});
     identit.set_row(2,{0,0,1,0});
 
+    // M=K[IO] for camera 0 and M=K[Rt] for camera 1
     auto M_prime = K*r_t;
     auto M = K * identit;
 
-
+    //triangulation method to determine the specific 3D points
     std::vector<Vector3D> points_3d;
     for (int i = 0; i < points_0.size(); i++){
 
@@ -194,22 +191,23 @@ std::vector<Vector3D> Points(const Matrix33 &K, const std::vector<Vector2D> &poi
         A.set_row(1,{y*M.get_row(2) - M.get_row(1)});
         A.set_row(2,{x_prime*M_prime.get_row(2) - M_prime.get_row(0)});
         A.set_row(3,{y_prime*M_prime.get_row(2) - M_prime.get_row(1)});
-
+        
+        //SVD of matrix A for 3D points 
         Matrix U = Matrix(A.rows(),A.cols(),0.0);
         Matrix S = Matrix(A.rows(),A.cols(), 0.0);
         Matrix V = Matrix(A.cols(),A.cols(),0.0);
 
         svd_decompose(A,U,S,V);
 
-        Vector4D p = V.get_column(V.cols() - 1);  // get the last column of V
+        Vector4D p = V.get_column(V.cols() - 1);  
         points_3d.emplace_back();
-        points_3d.back() = p.cartesian();  // add the 3d point to the result vector
+        points_3d.back() = p.cartesian();  
     }
 
     return points_3d;
 }
 
-
+    //----- counter for the different point_options for the different R and t 
 std::vector<std::vector<Vector3D>> point_options (const Matrix33 &K, const std::vector<Vector2D> &points_0,const std::vector<Vector2D> &points_1, const Matrix &R1, const Vector &t1, const Matrix &R2, const Vector &t2){
 
     std::vector<std::vector<Vector3D>> pointoptions;
@@ -222,10 +220,10 @@ std::vector<std::vector<Vector3D>> point_options (const Matrix33 &K, const std::
     pointoptions.emplace_back(option_3);
     pointoptions.emplace_back(option_4);
 
-
     return pointoptions;
 }
 
+    //----- Reading in the different points and construct the F and E matrix 
 
 bool Triangulation::triangulation(
         double fx, double fy,     /// input: the focal lengths (same for both cameras)
@@ -246,11 +244,11 @@ bool Triangulation::triangulation(
     auto points_1_norm = norm_points[1];
 
 
-    //// define W_matrix based on amount of inputpoints
+    // define W_matrix based on amount of inputpoints
 
     Matrix W_matrix_normalized(points_0.size(), 9, 0.0);
 
-    //fill W_matrix by traversing through all the points.
+    // fill W_matrix by traversing through all the points.
     for (int i = 0; i < points_0.size(); i++) {
         Vector2D p1 = points_0_norm[i];
         Vector2D p2 = points_1_norm[i];
@@ -284,7 +282,6 @@ bool Triangulation::triangulation(
     F_mat[2][1] = F[7];
     F_mat[2][2] = F[8];
 
-
     Matrix U_mat = Matrix(F_mat.rows(), F_mat.rows(), 0.0);
     Matrix S_mat = Matrix(F_mat.rows(), F_mat.cols(), 0.0);
     Matrix V_mat = Matrix(F_mat.cols(), F_mat.cols(), 0.0);
@@ -297,12 +294,11 @@ bool Triangulation::triangulation(
     //compute the new apprioximated F
     Matrix33 F_bestrank = (U_mat * S_mat * V_mat.transpose());
 
-    auto transform_0 = Transform_mat_normalized(points_0);
-    auto transform_1 = Transform_mat_normalized(points_1);
+    auto transform_0 = Transform_matrix(points_0);
+    auto transform_1 = Transform_matrix(points_1);
 
     Matrix33 T = transform_0.first;
     Matrix33 T_prime = transform_1.first;
-
 
     Matrix33 F_denorm = T_prime.transpose() * F_bestrank * T;
     auto F_scaled = F_denorm * 1.0 / F_denorm(2, 2);
@@ -323,20 +319,21 @@ bool Triangulation::triangulation(
     svd_decompose(Matrix(E), U_E, S_E, V_E);
 
     //determination of the essential matrix the 4 potential relative pose elements ( 2potential R and 2 potential t).
+    
     Matrix W_E = Matrix(3, 3);
     W_E.set_row(0, {0, -1, 0});
     W_E.set_row(1, {1, 0, 0});
     W_E.set_row(2, {0, 0, 1});
-
 
     auto R1 = determinant(U_E * W_E * transpose(V_E)) * U_E * W_E * transpose(V_E);
     auto R2 = determinant(U_E * transpose(W_E) * transpose(V_E)) * U_E * transpose(W_E) * transpose(V_E);
     auto t1 = U_E.get_column(U_E.cols() - 1);
     auto t2 = -1 * U_E.get_column(U_E.cols() - 1);
 
+    //----- searching for the best combination of R and t
     auto point_candidates = point_options(K, points_0, points_1, R1, t1, R2, t2);
 
-    // searching for the best combination of R and t
+    // option_score keeps track of the combination of the cases in which ppoint.z>0
     std::vector<int> options_score;
     for (int i = 0; i < point_candidates.size(); i++) {
         int option = 0;
@@ -365,18 +362,17 @@ bool Triangulation::triangulation(
                     default:
                         throw std::invalid_argument( "not 1 unique solution" );
                         ;
-
                 }
                 Vector3D ppoint = R_prime * point + t_prime;
                 if (ppoint.z()>0 ) {
                     option +=1;
                 }
-
             }
         }
         options_score.emplace_back(option);
     }
 
+    // maxelementindex checks the options_score in the beginning and the end
     int maxElementIndex = (std::max_element(options_score.begin(),options_score.end()) - options_score.begin());
     points_3d = point_candidates[maxElementIndex];
     switch(maxElementIndex) {
@@ -400,9 +396,12 @@ bool Triangulation::triangulation(
         default:
             throw std::invalid_argument( "not 1 unique solution" );
             ;
-
     }
+    
+    //---- evaluation of the results 
+    //checking the difference between the u,v values in the beginning with the reprojected u,v from the 3D points
 
+    // from the points_options it came forward that the combination of R2 and t1 gave the correct result 
     Matrix rt = Matrix(3,4);
     rt.set_column(0,{R2.get_column(0)});
     rt.set_column(1,{R2.get_column(1)});
@@ -417,8 +416,9 @@ bool Triangulation::triangulation(
     auto M_prime = K*rt;
     auto M = K * identit;
 
-    std::cout<<M<<std::endl;
+    //std::cout<<M<<std::endl;
 
+    //calculating the difference between the u,v given and u,v calculated 
     Vector2D diff0;
     Vector2D diff1;
 
@@ -433,7 +433,6 @@ bool Triangulation::triangulation(
 
     std::cout<<"diff0 = "<<diff0/points_3d.size()<<std::endl;
     std::cout<<"diff1 = "<<diff1/points_3d.size()<<std::endl;
-
 
     return !points_3d.empty();
 }
