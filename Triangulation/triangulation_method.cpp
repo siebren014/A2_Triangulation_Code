@@ -43,7 +43,7 @@ bool isvalid(const std::vector<Vector2D> &points_0, const std::vector<Vector2D> 
 }
 
 //---- translation and scaling matrix 
-std::pair<Matrix33, bool>Transformation_matrix(
+std::pair<Matrix33, bool>Transform_mat_normalized(
         const std::vector<Vector2D>& points)
 {
     //construction of the T matrix 
@@ -294,8 +294,8 @@ bool Triangulation::triangulation(
     //compute the new apprioximated F
     Matrix33 F_bestrank = (U_mat * S_mat * V_mat.transpose());
 
-    auto transform_0 = Transform_matrix(points_0);
-    auto transform_1 = Transform_matrix(points_1);
+    auto transform_0 = Transform_mat_normalized(points_0);
+    auto transform_1 = Transform_mat_normalized(points_1);
 
     Matrix33 T = transform_0.first;
     Matrix33 T_prime = transform_1.first;
