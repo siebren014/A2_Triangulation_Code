@@ -408,10 +408,10 @@ bool Triangulation::triangulation(
 
     // from the points_options it came forward that the combination of R2 and t1 gave the correct result 
     Matrix rt = Matrix(3,4);
-    rt.set_column(0,{R2.get_column(0)});
-    rt.set_column(1,{R2.get_column(1)});
-    rt.set_column(2,{R2.get_column(2)});
-    rt.set_column(3,{t1});
+    rt.set_column(0,{R.get_column(0)});
+    rt.set_column(1,{R.get_column(1)});
+    rt.set_column(2,{R.get_column(2)});
+    rt.set_column(3,{t});
 
     Matrix identit = Matrix(3,4);
     identit.set_row(0,{1,0,0,0});
